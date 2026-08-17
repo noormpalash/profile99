@@ -37,6 +37,15 @@ if (!empty($whereClauses)) {
     $whereSql = "WHERE " . implode(" AND ", $whereClauses);
 }
 
+$page = max(1, (int)($_GET['page'] ?? 1));
+$limit = 50;
+$offset = ($page - 1) * $limit;
+
+$countStmt = $db->prepare("SELECT COUNT(*) FROM activity_logs al $whereSql");
+$countStmt->execute($params);
+$totalLogs = $countStmt->fetchColumn();
+$totalPages = ceil($totalLogs / $limit);
+
 $stmt = $db->prepare("
     SELECT al.*, u.name AS user_name, p.name AS target_name, p.personal_number
     FROM activity_logs al
@@ -44,11 +53,16 @@ $stmt = $db->prepare("
     LEFT JOIN personnel p ON al.target_personnel_id = p.id
     $whereSql
     ORDER BY al.created_at DESC
-    LIMIT 500
+    LIMIT $limit OFFSET $offset
 ");
 $stmt->execute($params);
 $logs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+function getPageUrl($p) {
+    $q = $_GET;
+    $q['page'] = $p;
+    return '?' . http_build_query($q);
+}
 ?>
 <?php include __DIR__ . '/../includes/header.php'; ?>
 
@@ -169,6 +183,28 @@ $logs = $stmt->fetchAll(PDO::FETCH_ASSOC);
           </table>
         </div>
       </div>
+      <?php if ($totalPages > 1): ?>
+      <div class="card-footer d-flex justify-content-between align-items-center">
+        <div class="text-muted small">
+            Showing <?= $offset + 1 ?> to <?= min($offset + $limit, $totalLogs) ?> of <?= $totalLogs ?> entries
+        </div>
+        <nav>
+            <ul class="pagination pagination-sm mb-0">
+                <li class="page-item <?= $page <= 1 ? 'disabled' : '' ?>">
+                    <a class="page-link" href="<?= htmlspecialchars(getPageUrl($page - 1)) ?>">Previous</a>
+                </li>
+                <?php for ($i = max(1, $page - 2); $i <= min($totalPages, $page + 2); $i++): ?>
+                    <li class="page-item <?= $i == $page ? 'active' : '' ?>">
+                        <a class="page-link" href="<?= htmlspecialchars(getPageUrl($i)) ?>"><?= $i ?></a>
+                    </li>
+                <?php endfor; ?>
+                <li class="page-item <?= $page >= $totalPages ? 'disabled' : '' ?>">
+                    <a class="page-link" href="<?= htmlspecialchars(getPageUrl($page + 1)) ?>">Next</a>
+                </li>
+            </ul>
+        </nav>
+      </div>
+      <?php endif; ?>
     </div>
   </div>
 </div>

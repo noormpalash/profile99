@@ -49,7 +49,9 @@ $districts = bangladeshDistricts();
         <h4>Personnel</h4>
         <div class="text-muted">Manage records and use advanced filters to narrow the list.</div>
       </div>
+      <?php if (Auth::hasPermission('add_personnel')): ?>
       <a href="add_personnel.php" class="btn btn-primary btn-sm">Add personnel</a>
+      <?php endif; ?>
     </div>
 
     <div class="card shadow-sm mb-4 dashboard-filter-card" style="border-radius: 16px; padding: 0;">
