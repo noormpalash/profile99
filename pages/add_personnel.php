@@ -509,9 +509,17 @@ $appointments = LookupManager::getAll('appointments');
       <h6 class="mb-3">Social media links</h6>
       <div class="row mb-3">
         <?php foreach (['facebook' => 'Facebook', 'linkedin' => 'LinkedIn', 'whatsapp' => 'WhatsApp', 'twitter' => 'Twitter'] as $key => $label): ?>
+          <?php 
+             $inputType = $key === 'whatsapp' ? 'tel' : 'url';
+             $placeholder = $key === 'whatsapp' ? 'e.g. +8801XXXXXXXXX' : 'https://';
+             $val = $old['social_links'][$key] ?? '';
+             if ($key === 'whatsapp' && strpos($val, 'https://wa.me/') === 0) {
+                 $val = substr($val, 14);
+             }
+          ?>
           <div class="col-md-3 mb-3">
             <label class="form-label small"><?= $label ?></label>
-            <input type="url" name="social_links[<?= $key ?>]" class="form-control" value="<?= htmlspecialchars($old['social_links'][$key] ?? '') ?>" placeholder="https://">
+            <input type="<?= $inputType ?>" name="social_links[<?= $key ?>]" class="form-control" value="<?= htmlspecialchars($val) ?>" placeholder="<?= $placeholder ?>">
           </div>
         <?php endforeach; ?>
       </div>

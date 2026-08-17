@@ -858,6 +858,11 @@ class Personnel {
             if ($url === '') {
                 continue;
             }
+            if ($platform === 'whatsapp') {
+                if (strpos($url, 'https://wa.me/') !== 0 && strpos($url, 'http') !== 0) {
+                    $url = 'https://wa.me/' . preg_replace('/[^0-9+]/', '', $url);
+                }
+            }
             $stmt = $db->prepare("INSERT INTO personnel_social_links (personnel_id, platform, url) VALUES (?,?,?)");
             $stmt->execute([$personnelId, $platform, $url]);
         }
