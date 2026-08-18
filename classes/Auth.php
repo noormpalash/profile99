@@ -136,15 +136,15 @@ class Auth
         }
     }
 
-    // Session inactivity timeout in seconds (5 minutes)
-    private const SESSION_TIMEOUT = 300;
+    // Session inactivity timeout in seconds (30 minutes)
+    private const SESSION_TIMEOUT = 1800;
 
     public static function isLoggedIn(): bool
     {
         self::start();
         if (!isset($_SESSION['user_id'])) return false;
 
-        // Security: enforce 5-minute inactivity timeout
+        // Security: enforce 30-minute inactivity timeout
         if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity']) > self::SESSION_TIMEOUT) {
             self::logout();
             return false;
