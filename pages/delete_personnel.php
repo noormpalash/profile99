@@ -12,12 +12,12 @@ Auth::verifyCsrf($_POST['csrf_token'] ?? null);
 
 $id = (int)($_POST['id'] ?? 0);
 if ($id) {
-    if (Auth::hasPermission('approval') || Auth::hasPermission('auto_approval') || Auth::hasAnyPermission(['admin', 'superadmin', 'techadmin'])) {
+    if (Auth::hasPermission('approval') || Auth::hasPermission('auto_approval') || in_array(Auth::role(), ['admin', 'superadmin', 'techadmin'])) {
         require_once __DIR__ . '/../classes/ApprovalFormatter.php';
         $diffText = ApprovalFormatter::renderDiffText('delete', $id, '{}');
         Personnel::delete($id);
         require_once __DIR__ . '/../classes/Logger.php';
-        Logger::log('delete', $id, ['details' => $diffText]);
+        Logger::log('delete', null, ['deleted_id' => $id, 'details' => $diffText]);
     } else {
         $db = getDB();
         $stmt = $db->prepare("INSERT INTO personnel_approvals (action_type, personnel_id, proposed_data, requested_by) VALUES ('delete', ?, '{}', ?)");

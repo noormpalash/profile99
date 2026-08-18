@@ -140,7 +140,7 @@ foreach ($mpRows as $r) {
                       <input type="text" name="name" class="form-control form-control-sm" value="<?= htmlspecialchars($item['name']) ?>">
                       <button class="btn btn-sm btn-outline-primary" type="submit">Save</button>
                     </form>
-                    <form method="post" onsubmit="return confirm('Delete this option?')">
+                    <form method="post" data-confirm="Delete this option?">
                       <?= Auth::csrfField() ?>
                       <input type="hidden" name="action" value="delete">
                       <input type="hidden" name="id" value="<?= $item['id'] ?>">

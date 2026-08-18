@@ -220,7 +220,7 @@ $districts = bangladeshDistricts();
                 <a href="edit_personnel.php?id=<?= $p['id'] ?>" class="btn btn-sm btn-outline-primary">Edit</a>
             <?php endif; ?>
             <?php if (Auth::hasPermission('delete_personnel')): ?>
-                <form method="post" action="delete_personnel.php" class="d-inline" onsubmit="return confirm('Delete this record permanently?')">
+                <form method="post" action="delete_personnel.php" class="d-inline" data-confirm="Delete this record permanently?">
                     <?= Auth::csrfField() ?>
                     <input type="hidden" name="id" value="<?= $p['id'] ?>">
                     <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>

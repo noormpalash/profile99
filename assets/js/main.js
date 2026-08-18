@@ -60,4 +60,48 @@ document.addEventListener('DOMContentLoaded', function () {
 
     input.addEventListener('input', filterOptions);
   });
+
+  // Handle data-confirm on forms
+  document.addEventListener('submit', function(e) {
+    if (e.target.hasAttribute('data-confirm')) {
+      e.preventDefault();
+      const form = e.target;
+      const msg = form.getAttribute('data-confirm');
+      Swal.fire({
+        title: msg,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Yes'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          form.removeAttribute('data-confirm');
+          form.submit();
+        }
+      });
+    }
+  });
+
+  // Handle data-confirm on buttons/links
+  document.addEventListener('click', function(e) {
+    const el = e.target.closest('[data-confirm-click]');
+    if (el) {
+      e.preventDefault();
+      const msg = el.getAttribute('data-confirm-click');
+      Swal.fire({
+        title: msg,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Yes'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          el.removeAttribute('data-confirm-click');
+          el.click();
+        }
+      });
+    }
+  });
 });

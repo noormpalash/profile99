@@ -13,6 +13,7 @@
   </div>
 </footer>
 <script src="../assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="../assets/js/main.js?v=<?= filemtime(__DIR__ . '/../assets/js/main.js') ?>"></script>
 <?php if (Auth::isLoggedIn()): ?>
   <script>

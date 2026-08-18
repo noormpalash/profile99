@@ -126,7 +126,7 @@ $currentLogoPath = AppSettings::get('app_logo_path');
                   <img src="<?= BASE_URL ?>/uploads/<?= htmlspecialchars($currentLogoPath) ?>" alt="App Logo" style="height: 48px; width: auto; object-fit: contain;">
                   <div>
                     <div class="fw-medium">Current Logo</div>
-                    <button type="submit" name="remove_logo" value="1" class="btn btn-sm btn-outline-danger mt-1" onclick="return confirm('Are you sure you want to remove the logo and use the default icon?');">Remove Logo</button>
+                    <button type="button" name="remove_logo" value="1" class="btn btn-sm btn-outline-danger mt-1" data-confirm-click="Are you sure you want to remove the logo and use the default icon?">Remove Logo</button>
                   </div>
                 </div>
               <?php else: ?>

@@ -10,7 +10,7 @@ $old = $_POST;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     Auth::verifyCsrf($_POST['csrf_token'] ?? null);
     try {
-        if (Auth::hasPermission('approval') || Auth::hasPermission('auto_approval') || Auth::hasAnyPermission(['admin', 'superadmin', 'techadmin'])) {
+        if (Auth::hasPermission('approval') || Auth::hasPermission('auto_approval') || in_array(Auth::role(), ['admin', 'superadmin', 'techadmin'])) {
             require_once __DIR__ . '/../classes/ApprovalFormatter.php';
             $diffText = ApprovalFormatter::renderDiffText('add', 0, json_encode($_POST));
             $newId = Personnel::create($_POST, $_FILES['photo'] ?? []);

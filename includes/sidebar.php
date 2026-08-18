@@ -28,7 +28,7 @@
         </a>
         <?php endif; ?>
 
-        <?php if (Auth::hasPermission('approval') || Auth::hasAnyPermission(['admin', 'superadmin', 'techadmin'])): 
+        <?php if (Auth::hasPermission('approval') || in_array(Auth::role(), ['admin', 'superadmin', 'techadmin'])): 
             $pendingCount = getDB()->query("SELECT COUNT(*) FROM personnel_approvals WHERE status='pending'")->fetchColumn();
         ?>
         <a href="approvals.php" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center <?= $current==='approvals.php'?'active':'' ?>">

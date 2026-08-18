@@ -6,7 +6,7 @@ require_once __DIR__ . '/../classes/ApprovalFormatter.php';
 require_once __DIR__ . '/../config/db.php';
 
 Auth::requireLogin();
-if (!Auth::hasPermission('approval') && !Auth::hasAnyPermission(['admin', 'superadmin', 'techadmin'])) {
+if (!Auth::hasPermission('approval') && !in_array(Auth::role(), ['admin', 'superadmin', 'techadmin'])) {
     http_response_code(403);
     die('Access denied.');
 }
@@ -55,7 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 $status = 'approved';
                 $success = "Request approved successfully.";
-                Logger::log('approve', $targetId, ['approval_id' => $approvalId, 'type' => $req['action_type'], 'requested_by' => $req['requester_name'], 'details' => $diffText]);
+                Logger::log('approve', $req['action_type'] === 'delete' ? null : $targetId, ['approval_id' => $approvalId, 'type' => $req['action_type'], 'deleted_id' => $req['action_type'] === 'delete' ? $targetId : null, 'requested_by' => $req['requester_name'], 'details' => $diffText]);
             } else {
                 require_once __DIR__ . '/../classes/ApprovalFormatter.php';
                 $diffText = ApprovalFormatter::renderDiffText($req['action_type'], $req['personnel_id'], $req['proposed_data']);

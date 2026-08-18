@@ -43,7 +43,16 @@ class ApprovalFormatter {
         if ($actionType === 'add') {
             return self::renderAdd($data);
         } elseif ($actionType === 'delete') {
-            return "<div class='alert alert-danger mb-0'>Request to delete personnel ID: {$personnelId}</div>";
+            $name = $data['name'] ?? 'Unknown';
+            $pno = $data['personal_number'] ?? 'Unknown';
+            if ($name === 'Unknown' || $pno === 'Unknown') {
+                $person = Personnel::find($personnelId);
+                if ($person) {
+                    $name = $person['name'];
+                    $pno = $person['personal_number'] ?? 'Unknown';
+                }
+            }
+            return "<div class='alert alert-danger mb-0'>Request to delete personnel: {$name} (No: {$pno})</div>";
         } elseif ($actionType === 'edit') {
             if ($requesterId) {
                 $data = self::injectMissingPermittedFields($data, self::getRequesterPerms($requesterId));
@@ -59,7 +68,16 @@ class ApprovalFormatter {
             $name = $data['name'] ?? 'Unknown';
             return "Added personnel: {$name}";
         } elseif ($actionType === 'delete') {
-            return "Deleted personnel ID: {$personnelId}";
+            $name = $data['name'] ?? 'Unknown';
+            $pno = $data['personal_number'] ?? 'Unknown';
+            if ($name === 'Unknown' || $pno === 'Unknown') {
+                $person = Personnel::find($personnelId);
+                if ($person) {
+                    $name = $person['name'];
+                    $pno = $person['personal_number'] ?? 'Unknown';
+                }
+            }
+            return "Deleted personnel: {$name} (No: {$pno})";
         } elseif ($actionType === 'edit') {
             if ($requesterId) {
                 $data = self::injectMissingPermittedFields($data, self::getRequesterPerms($requesterId));

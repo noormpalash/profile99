@@ -128,14 +128,14 @@ unset($_SESSION['user_mgmt_error'], $_SESSION['user_mgmt_success']);
                       class="btn btn-sm btn-outline-secondary"><?= $u['status'] === 'active' ? 'Disable' : 'Enable' ?></button>
                   </form>
                   <?php if (Auth::hasPermission('force_logout_user')): ?>
-                  <form method="post" class="d-inline" onsubmit="return confirm('Force logout this user?')">
+                  <form method="post" class="d-inline" data-confirm="Force logout this user?">
                     <?= Auth::csrfField() ?>
                     <input type="hidden" name="action" value="force_logout">
                     <input type="hidden" name="id" value="<?= $u['id'] ?>">
                     <button class="btn btn-sm btn-outline-warning" type="submit">Logout</button>
                   </form>
                   <?php endif; ?>
-                  <form method="post" class="d-inline" onsubmit="return confirm('Delete this account?')">
+                  <form method="post" class="d-inline" data-confirm="Delete this account?">
                     <?= Auth::csrfField() ?>
                     <input type="hidden" name="action" value="delete">
                     <input type="hidden" name="id" value="<?= $u['id'] ?>">

@@ -20,7 +20,7 @@ $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     Auth::verifyCsrf($_POST['csrf_token'] ?? null);
     try {
-        if (Auth::hasPermission('approval') || Auth::hasPermission('auto_approval') || Auth::hasAnyPermission(['admin', 'superadmin', 'techadmin'])) {
+        if (Auth::hasPermission('approval') || Auth::hasPermission('auto_approval') || in_array(Auth::role(), ['admin', 'superadmin', 'techadmin'])) {
             require_once __DIR__ . '/../classes/ApprovalFormatter.php';
             $diffText = ApprovalFormatter::renderDiffText('edit', $id, json_encode($_POST), $_SESSION['user_id']);
             Personnel::update($id, $_POST, $_FILES['photo'] ?? null);

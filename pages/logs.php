@@ -80,7 +80,7 @@ function getPageUrl($p) {
         <div class="text-muted" style="font-size: 0.85rem;">Recent user activities. Every log will remain for 29 days.</div>
       </div>
       <?php if (Auth::hasPermission('reset_logs')): ?>
-        <form method="post" onsubmit="return confirm('Are you sure you want to delete all activity logs? This cannot be undone.');">
+        <form method="post" data-confirm="Are you sure you want to delete all activity logs? This cannot be undone.">
             <?= Auth::csrfField() ?>
             <button type="submit" name="action" value="reset_logs" class="btn btn-danger btn-sm">
                 <i class="ti ti-trash"></i> Reset Logs
@@ -147,8 +147,30 @@ function getPageUrl($p) {
                       <span class="badge <?= $badgeClass ?>"><?= $actionName ?></span>
                     </td>
                     <td>
-                        <?php if ($log['target_name']): ?>
-                            <?= htmlspecialchars($log['target_name']) ?>
+                        <?php 
+                            $displayName = $log['target_name'];
+                            if (!$displayName) {
+                                $detailsArr = json_decode($log['details'], true);
+                                if (is_array($detailsArr)) {
+                                    if (isset($detailsArr['target_name'])) {
+                                        $displayName = $detailsArr['target_name'];
+                                    } elseif (isset($detailsArr['details'])) {
+                                        $det = $detailsArr['details'];
+                                        if (preg_match('/Added personnel: (.*)/', $det, $m)) {
+                                            $displayName = $m[1];
+                                        } elseif (preg_match('/Deleted personnel: (.*?) \((ID|No):/', $det, $m)) {
+                                            $displayName = $m[1];
+                                        } elseif (preg_match('/Deleted personnel ID: (\d+)/', $det, $m)) {
+                                            $displayName = 'ID: ' . $m[1];
+                                        } elseif (preg_match('/Requested approval for deletion.*(ID|No): (\d+)/', $det, $m)) {
+                                            $displayName = 'ID: ' . $m[2];
+                                        }
+                                    }
+                                }
+                            }
+                        ?>
+                        <?php if ($displayName): ?>
+                            <?= htmlspecialchars($displayName) ?>
                         <?php else: ?>
                             <span class="text-muted">N/A</span>
                         <?php endif; ?>
