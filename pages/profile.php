@@ -59,7 +59,9 @@ $display = static fn($value, string $fallback = '-') => ($value !== null && trim
 $displayDate = static fn($value, string $fallback = '-') => ($value !== null && trim((string)$value) !== '' && $value !== '0000-00-00') ? date('d/m/y', strtotime((string)$value)) : $fallback;
 if (!empty($person['current_leave_type'])) {
     $person['status'] = 'on_leave';
-    $statusLabel = 'On Leave (' . ucwords(str_replace('_', ' ', $person['current_leave_type'])) . ')';
+    $lt = $person['current_leave_type'];
+    $displayLt = $lt === 'Pre Leave' ? 'P/L' : trim(str_ireplace('leave', '', $lt));
+    $statusLabel = 'On Leave (' . $displayLt . ')';
 } elseif (($person['status'] ?? '') === 'on_leave') {
     $person['status'] = 'active';
     $statusLabel = 'Active';
@@ -653,10 +655,11 @@ $canEdit = Auth::hasAnyPermission([
       <div class="text-muted">Personnel details and record information.</div>
     </div>
     <div class="d-flex gap-2 flex-wrap">
-      <a href="<?= Auth::role() === 'user' ? 'search.php' : 'dashboard.php' ?>" class="btn btn-outline-secondary btn-sm"><i class="ti ti-arrow-left me-1"></i>Back to list</a>
+      <a href="<?= Auth::role() === 'user' ? 'search.php' : 'dashboard.php' ?>" class="btn btn-outline-secondary btn-sm no-print"><i class="ti ti-arrow-left me-1"></i>Back to list</a>
       <?php if ($canEdit): ?>
-        <a href="edit_personnel.php?id=<?= $id ?>" class="btn btn-primary btn-sm"><i class="ti ti-edit me-1"></i>Edit profile</a>
+        <a href="edit_personnel.php?id=<?= $id ?>" class="btn btn-primary btn-sm no-print"><i class="ti ti-edit me-1"></i>Edit profile</a>
       <?php endif; ?>
+      <button type="button" class="btn-print no-print" onclick="window.print()"><i class="ti ti-printer"></i> Print Profile</button>
     </div>
   </div>
 
@@ -791,7 +794,7 @@ $canEdit = Auth::hasAnyPermission([
                           <td><?= $displayDate($leave['from_date']) ?></td>
                           <td><?= $displayDate($leave['to_date']) ?></td>
                           <td><?= $display($leave['total_days']) ?></td>
-                          <td><?= $display($leave['leave_type']) ?></td>
+                          <td><?= htmlspecialchars($leave['leave_type'] === 'Pre Leave' ? 'P/L' : trim(str_ireplace('leave', '', $leave['leave_type'] ?? '-'))) ?></td>
                         </tr>
                       <?php endforeach; ?>
                     </tbody>

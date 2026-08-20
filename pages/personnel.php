@@ -44,17 +44,20 @@ $districts = bangladeshDistricts();
   <?php include __DIR__ . '/../includes/sidebar.php'; ?>
 
   <div class="col-md-9 col-lg-10">
-    <div class="page-header">
+    <div class="page-header no-print">
       <div>
         <h4>Personnel</h4>
         <div class="text-muted">Manage records and use advanced filters to narrow the list.</div>
       </div>
-      <?php if (Auth::hasPermission('add_personnel')): ?>
-      <a href="add_personnel.php" class="btn btn-primary btn-sm">Add personnel</a>
-      <?php endif; ?>
+      <div class="d-flex gap-2 flex-wrap align-items-center">
+        <button type="button" class="btn-print no-print" onclick="printPersonnelList()"><i class="ti ti-printer"></i> Print List</button>
+        <?php if (Auth::hasPermission('add_personnel')): ?>
+        <a href="add_personnel.php" class="btn btn-primary btn-sm no-print">Add personnel</a>
+        <?php endif; ?>
+      </div>
     </div>
 
-    <div class="card shadow-sm mb-4 dashboard-filter-card" style="border-radius: 16px; padding: 0;">
+    <div class="card shadow-sm mb-4 dashboard-filter-card no-print" style="border-radius: 16px; padding: 0;">
       <form method="get" class="mb-0">
         <!-- Main Search Bar -->
         <div class="p-3 d-flex align-items-center gap-2 flex-wrap bg-white" style="border-radius: 16px;">
@@ -195,15 +198,19 @@ $districts = bangladeshDistricts();
       </form>
     </div>
 
-    <div class="card shadow-sm p-3 mb-4">
+    <div class="card shadow-sm p-3 mb-4 no-print">
       <div class="table-responsive">
-        <table id="personnelTable" class="table table-hover align-middle mb-0">
+        <table id="personnelTable" class="table table-hover align-middle mb-0 no-print">
           <thead>
-            <tr><th>Photo</th><th>Name</th><th>Personal No.</th><th>Rank</th><th class="text-end">Actions</th></tr>
+            <tr>
+              <th style="width: 40px;"><input type="checkbox" id="selectAllPersonnel" class="form-check-input" onclick="const checkboxes = document.querySelectorAll('.personnel-print-cb'); checkboxes.forEach(cb => cb.checked = this.checked);"></th>
+              <th>Photo</th><th>Name</th><th>Personal No.</th><th>Rank</th><th class="text-end">Actions</th>
+            </tr>
           </thead>
           <tbody>
       <?php foreach ($people as $p): ?>
         <tr>
+          <td><input type="checkbox" class="form-check-input personnel-print-cb" value="<?= htmlspecialchars($p['personal_number']) ?>"></td>
           <td><img src="<?= htmlspecialchars(personnelPhotoUrl($p['photo_path'] ?? null)) ?>" class="rounded-circle" width="36" height="36" style="object-fit:cover"></td>
           <td>
             <div class="name-cell">
@@ -233,7 +240,140 @@ $districts = bangladeshDistricts();
         </table>
       </div>
     </div>
+    
+    <!-- Print Only Section -->
+    <div class="print-only d-none">
+      <h3 id="customPrintHeading" style="text-align:center; margin-bottom: 5px; font-weight: bold;"></h3>
+      <h5 id="customPrintSubHeading" style="text-align:center; margin-bottom: 20px; font-weight: normal; font-size: 14pt;"></h5>
+      <table class="table table-bordered">
+        <thead>
+          <tr>
+            <th>Ser</th>
+            <th>P No</th>
+            <th>Rank</th>
+            <th>Name</th>
+            <th>Remark</th>
+          </tr>
+        </thead>
+        <tbody id="printPersonnelTbody">
+          <?php 
+          $rankWeights = [
+              'Major' => 1, 'Captain' => 2, 'Lieutenant' => 3, 
+              'Senior Warrant Officer' => 4, 'Warrant Officer' => 5, 
+              'Sergeant' => 6, 'Corporal' => 7, 'Lance Corporal' => 8, 
+              'Sainik' => 9, 'CK' => 10, 'NC(E)' => 11, 'NC(U)' => 12, 'ATT' => 13
+          ];
+          foreach ($people as $p): 
+              $rName = $p['rank_name'] ?? '';
+              $weight = $rankWeights[$rName] ?? 99;
+          ?>
+          <tr data-pno="<?= htmlspecialchars($p['personal_number']) ?>" data-seniority="<?= $weight ?>">
+            <td class="serial-col"></td>
+            <td><?= htmlspecialchars($p['personal_number']) ?></td>
+            <td><?= htmlspecialchars($p['rank_name'] ?? '-') ?></td>
+            <td><?= htmlspecialchars($p['name']) ?></td>
+            <td></td> <!-- Empty for handwritten remarks -->
+          </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+
   </div>
 </div>
+
+<script>
+function printPersonnelList() {
+    Swal.fire({
+        title: 'Print Options',
+        html:
+            '<input id="printHeading" class="swal2-input" placeholder="Heading" value="Personnel List" style="max-width: 90%; margin: 10px auto;">' +
+            '<input id="printSubHeading" class="swal2-input" placeholder="Sub-heading (optional)" style="max-width: 90%; margin: 10px auto;">' +
+            '<div style="text-align:left; width: 90%; margin: 10px auto 0; font-size:14px;">Date (optional):</div>' +
+            '<input type="date" id="printDate" class="swal2-input" style="max-width: 90%; margin: 5px auto 10px;">' +
+            '<div style="text-align:left; width: 90%; margin: 10px auto 0; font-size:14px;"><label><input type="checkbox" id="maintainSeniority" class="form-check-input me-1" checked> Maintain Army Seniority</label></div>' +
+            '<div style="text-align:left; width: 90%; margin: 10px auto 0; font-size:14px;">Page Size:</div>' +
+            '<select id="printPageSize" class="swal2-select" style="max-width: 90%; margin: 5px auto 10px;"><option value="A4">A4</option><option value="Legal">Legal</option><option value="Letter">Letter</option></select>',
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: '<i class="ti ti-printer"></i> Print',
+        preConfirm: () => {
+            return {
+                heading: document.getElementById('printHeading').value,
+                subHeading: document.getElementById('printSubHeading').value,
+                date: document.getElementById('printDate').value,
+                pageSize: document.getElementById('printPageSize').value,
+                maintainSeniority: document.getElementById('maintainSeniority').checked
+            }
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            document.getElementById("customPrintHeading").innerText = result.value.heading;
+            
+            const subEl = document.getElementById("customPrintSubHeading");
+            subEl.innerText = result.value.subHeading;
+            subEl.style.display = result.value.subHeading ? 'block' : 'none';
+            
+            let dateEl = document.getElementById("customPrintDate");
+            if (!dateEl) {
+                dateEl = document.createElement("div");
+                dateEl.id = "customPrintDate";
+                dateEl.style.cssText = "text-align:right; font-weight: bold; margin-bottom: 10px;";
+                document.getElementById("customPrintSubHeading").parentNode.insertBefore(dateEl, document.getElementById("customPrintSubHeading").nextSibling);
+            }
+            if(result.value.date) {
+                const d = new Date(result.value.date);
+                dateEl.innerText = "Date: " + d.toLocaleDateString('en-GB', {day: '2-digit', month: 'short', year: 'numeric'});
+                dateEl.style.display = 'block';
+            } else {
+                dateEl.style.display = 'none';
+            }
+            
+            // Handle selected rows
+            const checkboxes = document.querySelectorAll('.personnel-print-cb:checked');
+            const selectedPnos = Array.from(checkboxes).map(cb => cb.value);
+            const printTbody = document.getElementById('printPersonnelTbody');
+            let printRowsArray = Array.from(document.querySelectorAll('#printPersonnelTbody tr'));
+            
+            if (result.value.maintainSeniority) {
+                printRowsArray.sort((a, b) => {
+                    const wA = parseInt(a.getAttribute('data-seniority')) || 99;
+                    const wB = parseInt(b.getAttribute('data-seniority')) || 99;
+                    if (wA !== wB) return wA - wB;
+                    // fallback to P No
+                    const pnoA = a.getAttribute('data-pno') || '';
+                    const pnoB = b.getAttribute('data-pno') || '';
+                    return pnoA.localeCompare(pnoB);
+                });
+                // Re-append to DOM to visually sort them
+                printRowsArray.forEach(row => printTbody.appendChild(row));
+            }
+
+            let serialCounter = 1;
+            printRowsArray.forEach(row => {
+                if(selectedPnos.length === 0 || selectedPnos.includes(row.getAttribute('data-pno'))) {
+                    row.style.display = ''; // Show row
+                    const serCol = row.querySelector('.serial-col');
+                    if (serCol) serCol.innerText = serialCounter++;
+                } else {
+                    row.style.display = 'none'; // Hide row
+                }
+            });
+            
+            let dynStyle = document.getElementById('dynamicPrintStyle');
+            if(!dynStyle) {
+                dynStyle = document.createElement('style');
+                dynStyle.id = 'dynamicPrintStyle';
+                document.head.appendChild(dynStyle);
+            }
+            dynStyle.innerHTML = `@page { size: ${result.value.pageSize} portrait; margin: 0.5in 0.5in 0.5in 0.8in; }`;
+            
+            setTimeout(() => {
+                window.print();
+            }, 300);
+        }
+    });
+}
+</script>
 
 <?php include __DIR__ . '/../includes/footer.php'; ?>

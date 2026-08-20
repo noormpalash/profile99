@@ -1,0 +1,410 @@
+/* ═══════════════════════════════════════════════════
+   PRINT STYLESHEET — Army Personnel System
+   Hides UI chrome, optimizes tables & profile for paper
+   ═══════════════════════════════════════════════════ */
+
+@media print {
+
+  /* ── Hide non-printable elements ── */
+  .app-navbar,
+  .app-footer,
+  .sidebar-col,
+  .offcanvas,
+  .offcanvas-backdrop,
+  .modal-backdrop,
+  .btn,
+  .btn-group,
+  .dropdown,
+  .no-print,
+  .dashboard-filter-card,
+  .page-header .btn,
+  .page-header a,
+  #mobileSidebarToggle,
+  .chart-card canvas,
+  form[method="post"],
+  .alert,
+  .toast,
+  .swal2-container,
+  [data-bs-toggle],
+  .leave-type-badge,
+  .check-all-wrapper,
+  #personnelTable {
+    display: none !important;
+  }
+  
+  .absent-link {
+    text-decoration: none !important;
+    color: #000 !important;
+  }
+  
+  .print-only {
+    display: block !important;
+  }
+
+  /* ── Layout reset ── */
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    color: #000 !important;
+    font-size: 12pt !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .container-fluid,
+  .main-content,
+  .main-content.with-sidebar,
+  .main-content.no-sidebar {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .row {
+    margin: 0 !important;
+  }
+
+  .col-md-9,
+  .col-lg-10,
+  .col-md-3,
+  .col-lg-2 {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: 0 0 100% !important;
+    padding: 0 !important;
+  }
+
+  /* ── Print header with app name & date ── */
+  .print-header {
+    display: flex !important;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #000;
+    padding: 8px 0 10px;
+    margin-bottom: 16px;
+  }
+
+  .print-header .print-title {
+    font-size: 16pt;
+    font-weight: 800;
+    color: #000;
+  }
+
+  .print-header .print-date {
+    font-size: 10pt;
+    color: #333;
+  }
+
+  /* ── Page header ── */
+  .page-header {
+    padding: 0 0 8px !important;
+    margin-bottom: 12px !important;
+    border-bottom: 1px solid #ddd;
+  }
+
+  .page-header h4 {
+    font-size: 16pt !important;
+    color: #000 !important;
+    background: none !important;
+    -webkit-text-fill-color: #000 !important;
+  }
+
+  .page-header .text-muted {
+    font-size: 10pt !important;
+    color: #555 !important;
+  }
+
+  /* ── Tables ── */
+  table {
+    width: 100% !important;
+    margin: 0 auto !important; /* center the compact table */
+    border-collapse: collapse !important;
+    font-size: 12pt !important;
+    page-break-inside: auto;
+    border-radius: 0 !important;
+    border: 1px solid #000 !important;
+  }
+
+  table thead {
+    display: table-header-group;
+  }
+
+  table tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+    border-radius: 0 !important;
+  }
+
+  table th,
+  table td {
+    border: 1px solid #000 !important;
+    padding: 4px 6px !important;
+    color: #000 !important;
+    background: transparent !important;
+    line-height: 1.3 !important;
+    border-radius: 0 !important;
+  }
+
+  table th {
+    font-weight: bold !important;
+    text-transform: uppercase;
+    font-size: 11pt !important;
+    text-align: center !important;
+  }
+
+  /* Premium table overrides */
+  .premium-table-container {
+    background: transparent !important;
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+  }
+
+  .premium-table-inner {
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+  }
+
+  .premium-table th:first-child,
+  .premium-table td:first-child {
+    padding-left: 6px !important;
+  }
+
+  .premium-table tr.row-auth td,
+  .premium-table tr.row-posted td,
+  .premium-table tr.row-att td,
+  .premium-table tr.row-absent td,
+  .premium-table tr.row-present td,
+  .premium-table.absent-table tbody tr td,
+  .premium-table .total-row td {
+    background: transparent !important;
+    color: #000 !important;
+  }
+
+  .premium-table .total-row td {
+    background: transparent !important;
+    font-weight: 800 !important;
+  }
+
+  /* ── Stat cards (dashboard) ── */
+  .stat-card {
+    background: #f5f5f5 !important;
+    border: 1px solid #ccc !important;
+    border-radius: 4px !important;
+    padding: 10px !important;
+    box-shadow: none !important;
+    page-break-inside: avoid;
+  }
+
+  .stat-card .stat-value {
+    color: #000 !important;
+    font-size: 16pt !important;
+  }
+
+  .stat-card .stat-label {
+    color: #333 !important;
+  }
+
+  .stat-card.sc-total,
+  .stat-card.sc-active,
+  .stat-card.sc-leave,
+  .stat-card.sc-family,
+  .stat-card.sc-moq-no {
+    background: #f0f0f0 !important;
+  }
+
+  /* ── Chart card header ── */
+  .chart-card-header h6,
+  .card-header h6 {
+    font-size: 14pt !important;
+    color: #000 !important;
+    text-align: center !important;
+    width: 100% !important;
+    display: block !important;
+    text-transform: uppercase !important;
+    font-weight: bold !important;
+  }
+
+  .chart-card-header h6 i,
+  .card-header h6 i {
+    display: none !important;
+  }
+
+  .chart-card,
+  .table-responsive,
+  .premium-table-container,
+  .premium-table-inner {
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+  }
+
+  table, 
+  .premium-table,
+  .premium-table tbody,
+  .premium-table thead,
+  .premium-table tr,
+  .premium-table th,
+  .premium-table td,
+  table th,
+  table td {
+    border-radius: 0 !important;
+    white-space: nowrap !important;
+  }
+
+  /* ── Profile page ── */
+  .profile-page .hero-bg-layer {
+    background: #e0e0e0 !important;
+    box-shadow: none !important;
+  }
+
+  .profile-page .hero-body {
+    color: #000 !important;
+  }
+
+  .profile-page .hero-name {
+    color: #000 !important;
+  }
+
+  .profile-page .hero-pno {
+    color: #333 !important;
+  }
+
+  .profile-page .hero-tag {
+    background: #e8e8e8 !important;
+    color: #000 !important;
+    border-color: #ccc !important;
+  }
+
+  .profile-page .hero-avatar {
+    border-color: #ccc !important;
+    box-shadow: none !important;
+  }
+
+  .profile-page .info-card,
+  .profile-page .quick-look-box,
+  .profile-page .sn-box,
+  .profile-page .compact-cc-card {
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+    page-break-inside: avoid;
+  }
+
+  .profile-page .info-card-head h5,
+  .profile-page .quick-look-header h5,
+  .profile-page .sn-header h5,
+  .profile-page .compact-cc-head h5 {
+    color: #000 !important;
+  }
+
+  .profile-page .irow {
+    border-bottom: 1px solid #ddd !important;
+  }
+
+  .profile-page .irow-l {
+    color: #555 !important;
+  }
+
+  .profile-page .irow-v {
+    color: #000 !important;
+  }
+
+  .profile-page .hero-social {
+    display: none !important;
+  }
+
+  /* ── Personnel list ── */
+  .card {
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+    border-radius: 4px !important;
+  }
+
+  /* ── Absent link text ── */
+  a.absent-link {
+    color: #000 !important;
+    text-decoration: none !important;
+  }
+
+  /* ── Responsive table in print ── */
+  .table-responsive {
+    overflow: visible !important;
+  }
+
+  /* ── Page setup ── */
+  @page {
+    margin: 0.5in 0.5in 0.5in 0.8in;
+    size: portrait;
+  }
+
+  /* ── Hide animations ── */
+  .animate-in {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+
+  /* ── Leave table scroll ── */
+  .leave-table-scroll {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  /* ── Dash table card ── */
+  .dash-table-card {
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+  }
+}
+
+/* ═══════════════════════════════════════
+   SCREEN-ONLY: Print button styles
+   ═══════════════════════════════════════ */
+@media screen {
+  .print-header {
+    display: none !important;
+  }
+}
+
+.print-action-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-print {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: #ffffff;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.btn-print:hover {
+  background: #f1f5f9;
+  color: #1e293b;
+  border-color: rgba(148, 163, 184, 0.4);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+
+.btn-print i {
+  font-size: 1.05rem;
+}
+
+@media print {
+  .print-action-bar,
+  .btn-print {
+    display: none !important;
+  }
+}

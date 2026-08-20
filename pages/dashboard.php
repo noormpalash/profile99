@@ -158,6 +158,7 @@ foreach ($statusCounts as $sc) {
 
 // ── Currently On Leave ──
 $currentlyOnLeave = $db->query("SELECT p.id, p.name, p.personal_number, p.photo_path, r.name AS rank_name, pl.leave_type, pl.from_date, pl.to_date FROM personnel p JOIN personnel_leaves pl ON p.id = pl.personnel_id JOIN ranks r ON p.rank_id = r.id WHERE CURRENT_DATE >= pl.from_date AND CURRENT_DATE <= pl.to_date ORDER BY pl.to_date LIMIT 5")->fetchAll();
+$allOnLeave = $db->query("SELECT p.id, p.name, p.personal_number, p.photo_path, r.name AS rank_name, pl.leave_type, pl.from_date, pl.to_date FROM personnel p JOIN personnel_leaves pl ON p.id = pl.personnel_id JOIN ranks r ON p.rank_id = r.id WHERE CURRENT_DATE >= pl.from_date AND CURRENT_DATE <= pl.to_date ORDER BY pl.to_date")->fetchAll();
 ?>
 <?php include __DIR__ . '/../includes/header.php'; ?>
 
@@ -577,6 +578,9 @@ $currentlyOnLeave = $db->query("SELECT p.id, p.name, p.personal_number, p.photo_
         <h4>Dashboard</h4>
         <div class="text-muted" style="font-size: 0.85rem;">Overview of personnel data &amp; analytics</div>
       </div>
+      <div class="d-flex gap-2">
+        <button type="button" class="btn-print no-print" onclick="printSection(['manpowerSection', 'absentSection'])"><i class="ti ti-printer"></i> Print Paradestate</button>
+      </div>
     </div>
 
     <!-- ══════ STAT CARDS ══════ -->
@@ -615,12 +619,13 @@ $currentlyOnLeave = $db->query("SELECT p.id, p.name, p.personal_number, p.photo_
 
     <!-- ══════ MANPOWER STATE ══════ -->
     <div class="row g-3 mb-4">
-      <div class="col-12">
+      <div class="col-12" id="manpowerSection">
         <div class="chart-card animate-in delay-2"
           style="border: none; box-shadow: none; background: transparent; padding: 0;">
           <div class="chart-card-header px-1 pb-3 pt-0 d-flex justify-content-between align-items-center">
             <h6 style="font-size:1.1rem; letter-spacing:-0.02em;"><i class="ti ti-users-group me-2"
                 style="color:#6366f1"></i>MANPOWER STATE</h6>
+            <button type="button" class="btn-print no-print" onclick="printSection('manpowerSection')"><i class="ti ti-printer"></i> Print</button>
           </div>
           <div class="premium-table-container">
             <div class="premium-table-inner">
@@ -677,12 +682,13 @@ $currentlyOnLeave = $db->query("SELECT p.id, p.name, p.personal_number, p.photo_
 
     <!-- ══════ ABSENT STATE ══════ -->
     <div class="row g-3 mb-4">
-      <div class="col-12">
+      <div class="col-12" id="absentSection">
         <div class="chart-card animate-in delay-2"
           style="border: none; box-shadow: none; background: transparent; padding: 0;">
           <div class="chart-card-header px-1 pb-3 pt-0 d-flex justify-content-between align-items-center">
             <h6 style="font-size:1.1rem; letter-spacing:-0.02em;"><i class="ti ti-user-off me-2"
                 style="color:#ef4444"></i>ABSENT STATE</h6>
+            <button type="button" class="btn-print no-print" onclick="printSection('absentSection')"><i class="ti ti-printer"></i> Print</button>
           </div>
           <div class="premium-table-container">
             <div class="premium-table-inner">
@@ -788,13 +794,14 @@ $currentlyOnLeave = $db->query("SELECT p.id, p.name, p.personal_number, p.photo_
 
     <!-- ══════ TABLES ══════ -->
     <div class="row g-3 mb-4">
-      <div class="col-12">
-        <div class="dash-table-card animate-in delay-6">
-          <div class="card-header d-flex align-items-center justify-content-between">
-            <h6><i class="ti ti-calendar-off me-2" style="color:#f59e0b"></i>Currently On Leave</h6>
+      <div class="col-12" id="onLeaveSection">
+        <div class="chart-card animate-in delay-6" style="border: none; box-shadow: none; background: transparent; padding: 0;">
+          <div class="chart-card-header d-flex align-items-center justify-content-between px-1 pb-3 pt-0">
+            <h6 style="font-size:1.1rem; letter-spacing:-0.02em;"><i class="ti ti-calendar-off me-2" style="color:#f59e0b"></i>Currently On Leave</h6>
+            <button type="button" class="btn-print no-print" onclick="printSection('onLeaveSection', 'Currently On Leave')"><i class="ti ti-printer"></i> Print</button>
           </div>
-          <div class="table-responsive">
-            <table class="table table-hover">
+          <div class="table-responsive no-print" style="background: #fff; border-radius: 12px; border: 1px solid #eee; overflow: hidden;">
+            <table class="table table-hover mb-0">
               <thead>
                 <tr>
                   <th>Photo</th>
@@ -811,17 +818,51 @@ $currentlyOnLeave = $db->query("SELECT p.id, p.name, p.personal_number, p.photo_
                         class="person-avatar-sm"></td>
                     <td class="fw-semibold"><?= htmlspecialchars($lv['name']) ?></td>
                     <td><?= htmlspecialchars($lv['rank_name'] ?? '-') ?></td>
-                    <td><span class="leave-type-badge"><?= htmlspecialchars($lv['leave_type'] ?? '-') ?></span></td>
+                    <td><span class="leave-type-badge"><?= htmlspecialchars($lv['leave_type'] === 'Pre Leave' ? 'P/L' : trim(str_ireplace('leave', '', $lv['leave_type'] ?? '-'))) ?></span></td>
                     <td class="text-muted"><?= date('d/m/y', strtotime($lv['to_date'])) ?></td>
                   </tr>
                 <?php endforeach; ?>
                 <?php if (empty($currentlyOnLeave)): ?>
                   <tr>
-                    <td colspan="5" class="text-center text-muted py-3">No one on leave</td>
+                    <td colspan="5" class="text-center text-muted py-4">No personnel currently on leave.</td>
                   </tr>
                 <?php endif; ?>
               </tbody>
             </table>
+          </div>
+          
+          <!-- Print Only Table -->
+          <div class="print-only d-none">
+            <div class="premium-table-container">
+              <div class="premium-table-inner">
+                <table class="table premium-table align-middle">
+                  <thead>
+                    <tr>
+                      <th>P No</th>
+                      <th>Rank</th>
+                      <th>Name</th>
+                      <th>From</th>
+                      <th>To</th>
+                      <th>Leave Type</th>
+                      <th>Remark</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <?php foreach ($allOnLeave as $l): ?>
+                    <tr>
+                      <td><?= htmlspecialchars($l['personal_number']) ?></td>
+                      <td><?= htmlspecialchars($l['rank_name'] ?? '-') ?></td>
+                      <td><?= htmlspecialchars($l['name']) ?></td>
+                      <td><?= htmlspecialchars(date('d M Y', strtotime($l['from_date']))) ?></td>
+                      <td><?= htmlspecialchars(date('d M Y', strtotime($l['to_date']))) ?></td>
+                      <td><?= htmlspecialchars($l['leave_type'] === 'Pre Leave' ? 'P/L' : trim(str_ireplace('leave', '', $l['leave_type'] ?? '-'))) ?></td>
+                      <td></td>
+                    </tr>
+                    <?php endforeach; ?>
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -885,4 +926,117 @@ $currentlyOnLeave = $db->query("SELECT p.id, p.name, p.personal_number, p.photo_
         });
     }
   });
+
+  function printSection(sectionIds, defaultHeading = 'Paradestate') {
+    if (!Array.isArray(sectionIds)) {
+      sectionIds = [sectionIds];
+    }
+    
+    Swal.fire({
+        title: 'Print Options',
+        html:
+            '<input id="printHeading" class="swal2-input mb-2" placeholder="Heading" value="' + defaultHeading + '" style="max-width: 90%; margin: 10px auto;">' +
+            '<input id="printSubHeading" class="swal2-input" placeholder="Sub-heading (optional)" style="max-width: 90%; margin: 10px auto;">' +
+            '<div style="text-align:left; width: 90%; margin: 10px auto 0; font-size:14px;">Date (optional):</div>' +
+            '<input type="date" id="printDate" class="swal2-input" style="max-width: 90%; margin: 5px auto 10px;">' +
+            '<div style="text-align:left; width: 90%; margin: 10px auto 0; font-size:14px;">Page Size:</div>' +
+            '<select id="printPageSize" class="swal2-select" style="max-width: 90%; margin: 5px auto 10px;"><option value="A4">A4</option><option value="Legal">Legal</option><option value="Letter">Letter</option></select>',
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: '<i class="ti ti-printer"></i> Print',
+        preConfirm: () => {
+            return {
+                heading: document.getElementById('printHeading').value,
+                subHeading: document.getElementById('printSubHeading').value,
+                date: document.getElementById('printDate').value,
+                pageSize: document.getElementById('printPageSize').value
+            }
+        }
+    }).then((result) => {
+        if (!result.isConfirmed) return;
+        
+        let heading = result.value.heading;
+        let subHeading = result.value.subHeading;
+        let dateVal = result.value.date;
+        let pageSize = result.value.pageSize;
+        
+        let dynStyle = document.getElementById('dynamicPrintStyle');
+        if(!dynStyle) {
+            dynStyle = document.createElement('style');
+            dynStyle.id = 'dynamicPrintStyle';
+            document.head.appendChild(dynStyle);
+        }
+        dynStyle.innerHTML = `@page { size: ${pageSize} portrait; margin: 0.5in 0.5in 0.5in 0.8in; }`;
+        
+        let headingEl = document.getElementById("customPrintHeading");
+        if (!headingEl) {
+            headingEl = document.createElement("div");
+            headingEl.id = "customPrintHeading";
+            headingEl.style.cssText = "text-align:center; margin-bottom: 20px; display: none;";
+            headingEl.className = "print-only";
+            headingEl.innerHTML = '<h3 style="font-weight: bold; margin-bottom: 5px;"></h3><h5 style="font-weight: normal; font-size: 14pt; margin:0;"></h5><div class="printDateDisplay" style="text-align:right; font-weight: bold; margin-top:10px;"></div>';
+            document.querySelector('.col-md-9, .col-lg-10').prepend(headingEl);
+        }
+        
+        headingEl.querySelector('h3').innerText = heading;
+        headingEl.querySelector('h5').innerText = subHeading;
+        headingEl.querySelector('h5').style.display = subHeading ? 'block' : 'none';
+        
+        let dateDisplay = headingEl.querySelector('.printDateDisplay');
+        if (dateVal) {
+            const d = new Date(dateVal);
+            dateDisplay.innerText = "Date: " + d.toLocaleDateString('en-GB', {day: '2-digit', month: 'short', year: 'numeric'});
+            dateDisplay.style.display = 'block';
+        } else {
+            dateDisplay.style.display = 'none';
+        }
+        
+        headingEl.style.display = 'block';
+
+    const parent = document.querySelector('.col-md-9, .col-lg-10');
+    const children = parent.children;
+    const hidden = [];
+    const sections = sectionIds.map(id => document.getElementById(id)).filter(el => el);
+    
+    if (sections.length === 0) return;
+
+    for (let i = 0; i < children.length; i++) {
+      const child = children[i];
+      if (child.id === 'customPrintHeading') continue; // Don't hide our heading
+      let containsSection = false;
+      for (let sec of sections) {
+        if (child.contains(sec) || child === sec.closest('.row')) {
+          containsSection = true;
+        }
+      }
+      if (!containsSection) {
+        child.style.display = 'none';
+        hidden.push(child);
+      }
+    }
+    
+    const rows = parent.querySelectorAll(':scope > .row');
+    const hiddenRows = [];
+    rows.forEach(row => {
+      let containsSection = false;
+      for (let sec of sections) {
+        if (row.contains(sec)) {
+          containsSection = true;
+        }
+      }
+      if (!containsSection) {
+        row.style.display = 'none';
+        hiddenRows.push(row);
+      }
+    });
+    
+    setTimeout(() => {
+        window.print();
+        
+        hidden.forEach(el => el.style.display = '');
+        hiddenRows.forEach(el => el.style.display = '');
+        headingEl.style.display = 'none';
+    }, 300);
+  });
+}
 </script>
