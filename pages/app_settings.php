@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../classes/Auth.php';
 require_once __DIR__ . '/../classes/AppSettings.php';
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../classes/UpdaterService.php';
 Auth::requirePermission('app_settings');
 
 $withSidebar = true;
@@ -18,7 +19,29 @@ if (!is_dir($uploadDir)) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     Auth::verifyCsrf($_POST['csrf_token'] ?? null);
     
-    if (isset($_POST['remove_logo'])) {
+    if (isset($_POST['run_system_update'])) {
+        Auth::requirePermission('system_update');
+        $file = $_FILES['zip_file'] ?? null;
+        if ($file && $file['error'] === UPLOAD_ERR_OK) {
+            $mime = mime_content_type($file['tmp_name']);
+            if (in_array($mime, ['application/zip', 'application/x-zip-compressed', 'multipart/x-zip'])) {
+                try {
+                    $updater = new UpdaterService();
+                    $migrationsRun = $updater->updateFromZip($file['tmp_name']);
+                    $message = "Update successful! Application files updated.";
+                    if (!empty($migrationsRun)) {
+                        $message .= " Migrations run: " . implode(', ', $migrationsRun);
+                    }
+                } catch (Exception $e) {
+                    $error = "Update Error: " . $e->getMessage();
+                }
+            } else {
+                $error = "Invalid file type. Please upload a ZIP file.";
+            }
+        } else {
+            $error = "Upload failed.";
+        }
+    } elseif (isset($_POST['remove_logo'])) {
         $currentLogo = AppSettings::get('app_logo_path');
         if ($currentLogo) {
             $filePath = $uploadDir . $currentLogo;
@@ -151,6 +174,29 @@ $currentLogoPath = AppSettings::get('app_logo_path');
           </form>
         </div>
       </div>
+      
+      <?php if (Auth::hasPermission('system_update')): ?>
+      <div class="col-lg-6">
+        <div class="card shadow-sm p-4">
+          <h5 class="card-title fw-bold mb-3">System Updater</h5>
+          <p class="text-muted small mb-4">Upload a new application ZIP to update features. Your database and data files (e.g., uploads) will be preserved.</p>
+          
+          <form method="post" enctype="multipart/form-data">
+            <?= Auth::csrfField() ?>
+            <input type="hidden" name="run_system_update" value="1">
+            
+            <div class="mb-4">
+              <label class="form-label fw-medium">Application ZIP File</label>
+              <input type="file" name="zip_file" class="form-control" accept=".zip" required>
+            </div>
+            
+            <div class="d-flex justify-content-end gap-2">
+              <button type="submit" class="btn btn-warning px-4" data-confirm-click="Are you sure you want to install this update?">Install Update</button>
+            </div>
+          </form>
+        </div>
+      </div>
+      <?php endif; ?>
     </div>
   </div>
 </div>
