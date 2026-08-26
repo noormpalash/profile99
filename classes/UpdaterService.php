@@ -42,7 +42,15 @@ class UpdaterService
             
             // Check if ZIP has a root folder or files directly.
             // Often ZIPs from github have a single root folder. We'll handle direct files.
-            $this->copyFilesRecursively($this->tempExtractDir, $this->appRoot);
+            $extractItems = array_diff(scandir($this->tempExtractDir), ['.', '..']);
+            $sourceDir = $this->tempExtractDir;
+            if (count($extractItems) === 1) {
+                $singleItem = reset($extractItems);
+                if (is_dir($this->tempExtractDir . '/' . $singleItem)) {
+                    $sourceDir = $this->tempExtractDir . '/' . $singleItem;
+                }
+            }
+            $this->copyFilesRecursively($sourceDir, $this->appRoot);
             
             // Run migrations after copying new files
             $migrationService = new MigrationService();
