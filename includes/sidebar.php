@@ -1,5 +1,5 @@
 <?php $current = basename($_SERVER['PHP_SELF']); ?>
-<div class="sidebar-column offcanvas-lg offcanvas-start" id="mobileSidebar" tabindex="-1" aria-labelledby="mobileSidebarLabel">
+<div class="sidebar-column no-print offcanvas-lg offcanvas-start" id="mobileSidebar" tabindex="-1" aria-labelledby="mobileSidebarLabel">
   <div class="offcanvas-header d-lg-none border-bottom">
     <h5 class="offcanvas-title text-dark fw-bold" id="mobileSidebarLabel">Menu</h5>
     <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" data-bs-target="#mobileSidebar" aria-label="Close"></button>

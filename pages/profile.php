@@ -646,6 +646,43 @@ $canEdit = Auth::hasAnyPermission([
     .profile-page .info-grid .irow:nth-child(odd) { border-right: none; }
     .profile-page .irow { grid-template-columns: 1fr; gap: 3px; }
   }
+
+  /* ── Editorial Bio Data Print Styling ── */
+  @media screen {
+    .bio-print-container { display: none !important; }
+  }
+  @media print {
+    @page { margin: 12mm; size: A4; }
+    html, body, .main-content, .container-fluid, .bio-print-container, div[class^="print-sec-"] { display: block !important; }
+    body { background: #fff !important; margin: 0; padding: 0; color: #000; }
+    #sidebar, .navbar, .page-header, .profile-page, .no-print { display: none !important; }
+    .main-content, .container-fluid { margin: 0 !important; padding: 0 !important; width: 100% !important; max-width: 100% !important; }
+    
+    .bio-print-container { width: 100%; font-family: "Times New Roman", Times, serif; font-size: 10pt; line-height: 1.4; }
+    .bio-header-wrap { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 8px; }
+    .bio-header-text { flex: 1; text-align: center; }
+    .bio-header-title { font-size: 18pt; font-weight: bold; text-transform: uppercase; margin: 0; letter-spacing: 2px; }
+    .bio-header-sub { font-size: 9pt; font-style: italic; color: #333; margin-top: 5px; }
+    
+    .bio-photo-box { width: 85px; height: 105px; border: 2px solid #000; padding: 2px; flex-shrink: 0; }
+    .bio-photo-box img { width: 100%; height: 100%; object-fit: cover; }
+    .bio-photo-placeholder { width: 85px; height: 105px; border: 2px solid #000; flex-shrink: 0; }
+
+    .bio-section-title { display: inline-block; width: 100%; box-sizing: border-box; font-size: 11pt; font-weight: bold; text-transform: uppercase; margin: 8px 0 3px; background: #e0e0e0 !important; -webkit-print-color-adjust: exact; padding: 3px 6px; border: 1px solid #000; page-break-after: avoid; break-after: avoid; }
+    
+    .bio-table { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; margin-bottom: 4px; border-top: 1px solid #000; border-left: 1px solid #000; }
+    .bio-table td, .bio-table th { border-bottom: 1px solid #000; border-right: 1px solid #000; border-top: none; border-left: none; padding: 3px 6px; vertical-align: middle; page-break-inside: avoid !important; break-inside: avoid !important; word-wrap: break-word; word-break: break-word; }
+    .bio-table tr { page-break-inside: avoid !important; break-inside: avoid !important; page-break-after: auto !important; }
+    .bio-table .lbl { width: 18%; font-weight: bold; background: #f7f7f7 !important; -webkit-print-color-adjust: exact; }
+    .bio-table td.val:not([colspan]) { width: 32%; }
+    
+    .bio-table-list th { font-weight: bold; background: #f7f7f7 !important; -webkit-print-color-adjust: exact; text-align: center; }
+    .bio-table-list td { text-align: center; }
+    
+    div[class^="print-sec-"] { page-break-inside: avoid !important; break-inside: avoid !important; }
+    .avoid-break { page-break-inside: avoid !important; break-inside: avoid !important; }
+    .page-break { page-break-before: always !important; break-before: page !important; }
+  }
 </style>
 
 <div class="profile-page">
@@ -659,7 +696,9 @@ $canEdit = Auth::hasAnyPermission([
       <?php if ($canEdit): ?>
         <a href="edit_personnel.php?id=<?= $id ?>" class="btn btn-primary btn-sm no-print"><i class="ti ti-edit me-1"></i>Edit profile</a>
       <?php endif; ?>
-      <button type="button" class="btn-print no-print" onclick="window.print()"><i class="ti ti-printer"></i> Print Profile</button>
+      <?php if (Auth::hasPermission('print_records')): ?>
+      <button type="button" class="btn-print no-print" onclick="printBioData()"><i class="ti ti-printer"></i> Print Profile</button>
+      <?php endif; ?>
     </div>
   </div>
 
@@ -692,11 +731,20 @@ $canEdit = Auth::hasAnyPermission([
             <div class="hero-social-label">Social Links</div>
             <?php if ($socialLinks): ?>
               <div class="hero-social-list">
-                <?php foreach ($socialLinks as $link): ?>
-                  <a href="<?= htmlspecialchars($link['url']) ?>" target="_blank" rel="noopener noreferrer" class="hero-social-pill" title="<?= htmlspecialchars(ucfirst($link['platform'])) ?>">
-                    <i class="<?= $icons[$link['platform']] ?? 'ti ti-link' ?>"></i>
-                    <span><?= htmlspecialchars(ucfirst($link['platform'])) ?></span>
-                  </a>
+                <?php foreach ($socialLinks as $link): 
+                    $displayUrl = $link['url'];
+                    if (strtolower($link['platform']) === 'whatsapp') {
+                        $displayUrl = preg_replace('/[^0-9+]/', '', $displayUrl);
+                        if (empty($displayUrl)) $displayUrl = $link['url'];
+                    } else {
+                        $displayUrl = preg_replace('#^https?://(www\.)?#i', '', $displayUrl);
+                        $displayUrl = rtrim($displayUrl, '/');
+                    }
+                ?>
+                  <div class="hero-social-pill" title="<?= htmlspecialchars(ucfirst($link['platform'])) ?>">
+                    <i class="<?= $icons[strtolower($link['platform'])] ?? 'ti ti-link' ?>"></i>
+                    <span><?= htmlspecialchars($displayUrl) ?></span>
+                  </div>
                 <?php endforeach; ?>
               </div>
             <?php else: ?>
@@ -1108,5 +1156,387 @@ $canEdit = Auth::hasAnyPermission([
 
   </div>
 </div>
+
+<!-- Print Only Bio Data Container -->
+<div class="bio-print-container">
+  
+  <div class="bio-header-wrap avoid-break">
+    <div style="width: 85px;"></div> <!-- Spacer for symmetry -->
+    <div class="bio-header-text">
+      <h1 class="bio-header-title">Bio Data</h1>
+    </div>
+    <?php if(!empty($person['photo_path'])): ?>
+      <div class="bio-photo-box">
+        <img src="<?= htmlspecialchars(personnelPhotoUrl($person['photo_path'])) ?>" alt="Photo">
+      </div>
+    <?php else: ?>
+      <div class="bio-photo-placeholder"></div>
+    <?php endif; ?>
+  </div>
+
+  <div class="print-sec-personal">
+    <div class="bio-section-title avoid-break">1. Personal & Service Details</div>
+    <table class="bio-table avoid-break">
+      <tr>
+        <td class="lbl">Name</td>
+        <td class="val" colspan="3"><strong><?= htmlspecialchars($person['name']) ?></strong></td>
+      </tr>
+      <tr>
+        <td class="lbl">Personal No</td>
+        <td class="val"><?= htmlspecialchars($person['personal_number']) ?></td>
+        <td class="lbl">Rank</td>
+        <td class="val"><?= $display($person['rank_name'] ?? null) ?></td>
+      </tr>
+      <tr>
+        <td class="lbl">Unit</td>
+        <td class="val"><?= $display($person['unit_name'] ?? null) ?></td>
+        <td class="lbl">Platoon</td>
+        <td class="val"><?= $display($person['platoon_name'] ?? null) ?></td>
+      </tr>
+      <tr>
+        <td class="lbl">Appointment</td>
+        <td class="val"><?= $display($person['appointment_name'] ?? null) ?></td>
+        <td class="lbl">Batch</td>
+        <td class="val"><?= $display($person['batch'] ?? null) ?></td>
+      </tr>
+      <tr>
+        <td class="lbl">Status</td>
+        <td class="val"><?= htmlspecialchars($statusLabel) ?></td>
+        <td class="lbl">Admission Date</td>
+        <td class="val"><?= $displayDate($service['admission_date'] ?? null) ?></td>
+      </tr>
+      <tr>
+        <td class="lbl">UN Mission</td>
+        <td class="val"><?= $display($service['un_mission'] ?? null) ?></td>
+        <td class="lbl">Retirement Date</td>
+        <td class="val"><?= $displayDate($service['retirement_date'] ?? null) ?></td>
+      </tr>
+      <tr>
+        <td class="lbl">Blood Group</td>
+        <td class="val"><?= $display($person['blood_group_name'] ?? null) ?></td>
+        <td class="lbl">NID</td>
+        <td class="val"><?= $display($person['nid'] ?? null) ?></td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="print-sec-contact">
+    <div class="bio-section-title avoid-break">2. Contact & Address</div>
+    <table class="bio-table avoid-break">
+      <tr>
+        <td class="lbl">Mobile</td>
+        <td class="val"><?= $display($person['mobile_number'] ?? null) ?></td>
+        <td class="lbl">District</td>
+        <td class="val"><?= $display($person['address'] ?? null) ?></td>
+      </tr>
+      <tr>
+        <td class="lbl">Vill</td>
+        <td class="val"><?= $display($person['vill'] ?? null) ?></td>
+        <td class="lbl">PO</td>
+        <td class="val"><?= $display($person['po'] ?? null) ?></td>
+      </tr>
+      <tr>
+        <td class="lbl">PS</td>
+        <td class="val" colspan="3"><?= $display($person['ps'] ?? null) ?></td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="print-sec-family">
+    <div class="bio-section-title avoid-break">3. Family Information</div>
+    <table class="bio-table avoid-break">
+      <tr>
+        <td class="lbl">Father's Name</td>
+        <td class="val"><?= $display($family['father_name'] ?? null) ?></td>
+        <td class="lbl">Mobile</td>
+        <td class="val"><?= $display($family['father_mobile'] ?? null) ?></td>
+      </tr>
+      <tr>
+        <td class="lbl">Mother's Name</td>
+        <td class="val"><?= $display($family['mother_name'] ?? null) ?></td>
+        <td class="lbl">Mobile</td>
+        <td class="val"><?= $display($family['mother_mobile'] ?? null) ?></td>
+      </tr>
+      <tr>
+        <td class="lbl">Spouse's Name</td>
+        <td class="val"><?= $display($family['spouse_name'] ?? null) ?></td>
+        <td class="lbl">Mobile</td>
+        <td class="val"><?= $display($family['spouse_mobile'] ?? null) ?></td>
+      </tr>
+      <tr>
+        <td class="lbl">Marital Status</td>
+        <td class="val"><?= $display(!empty($family['marital_status']) ? ucfirst($family['marital_status']) : null) ?></td>
+        <td class="lbl">Children Count</td>
+        <td class="val"><?= $display($family['children_count'] ?? null) ?></td>
+      </tr>
+      <tr>
+        <td class="lbl">Living Status</td>
+        <td class="val"><?= $display($family['living_status'] ?? null) ?></td>
+        <td class="lbl">Family Member</td>
+        <td class="val">
+          <?= $display($family['family_member'] ?? 'No') ?>
+          <?php if (($family['family_member'] ?? 'No') === 'Yes' && (!empty($family['fm_date_from']) || !empty($family['fm_date_to']))): ?>
+            <br>(<?= $displayDate($family['fm_date_from'] ?? null, '') ?> - <?= $displayDate($family['fm_date_to'] ?? null, '') ?>)
+          <?php endif; ?>
+        </td>
+      </tr>
+      <?php if (($family['family_member'] ?? 'No') === 'Yes' && !empty($family['fm_current_address'])): ?>
+      <tr>
+        <td class="lbl">FM Address</td>
+        <td class="val" colspan="3"><?= $display($family['fm_current_address']) ?></td>
+      </tr>
+      <?php endif; ?>
+    </table>
+  </div>
+
+  <div class="print-sec-health">
+    <div class="bio-section-title avoid-break">4. Health Details</div>
+    <table class="bio-table avoid-break">
+      <tr>
+        <td class="lbl">Height</td>
+        <td class="val"><?= $display(isset($health['height_cm']) && $health['height_cm'] !== '' ? $health['height_cm'] . ' cm' : null) ?></td>
+        <td class="lbl">Weight</td>
+        <td class="val"><?= $display(isset($health['weight_kg']) && $health['weight_kg'] !== '' ? $health['weight_kg'] . ' kg' : null) ?></td>
+      </tr>
+      <tr>
+        <td class="lbl">Medical Cat</td>
+        <td class="val"><?= $display($health['medical_category_name'] ?? null) ?></td>
+        <td class="lbl">Known Disease</td>
+        <td class="val"><?= $display($health['any_disease'] ?? null) ?></td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="print-sec-training page-break">
+    <div class="bio-section-title avoid-break">5. Training & Qualifications</div>
+    <table class="bio-table avoid-break">
+      <tr>
+        <td class="lbl">Cadres</td>
+        <td class="val" colspan="3"><?php if($cadres) { echo implode(', ', array_map(fn($c) => htmlspecialchars($c['name']), $cadres)); } else { echo '-'; } ?></td>
+      </tr>
+      <tr>
+        <td class="lbl">Courses</td>
+        <td class="val" colspan="3"><?php if($courses) { echo implode(', ', array_map(fn($c) => htmlspecialchars($c['course_name']) . ' (' . htmlspecialchars($c['result'] ?? '') . ')', $courses)); } else { echo '-'; } ?></td>
+      </tr>
+      <tr>
+        <td class="lbl">MOQs</td>
+        <td class="val" colspan="3"><?php if($moqs) { echo implode(', ', array_map(fn($c) => htmlspecialchars($c['moq_name']) . ' (' . htmlspecialchars($c['result'] ?? '') . ')', $moqs)); } else { echo '-'; } ?></td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="print-sec-perf">
+    <div class="bio-section-title avoid-break">6. Performance & Checks</div>
+    <table class="bio-table avoid-break">
+      <tr>
+        <td class="lbl">IPFT (1st)</td>
+        <td class="val"><?= $display($service['ipft_1st'] ?? null) ?></td>
+        <td class="lbl">IPFT (2nd)</td>
+        <td class="val"><?= $display($service['ipft_2nd'] ?? null) ?></td>
+      </tr>
+      <tr>
+        <td class="lbl">RET</td>
+        <td class="val"><?= $display($service['ret'] ?? null) ?></td>
+        <td class="lbl">Speed March</td>
+        <td class="val"><?= $display($service['speed_march'] ?? null) ?></td>
+      </tr>
+      <tr>
+        <td class="lbl">Yearly Plan</td>
+        <td class="val" colspan="3">
+          <?= $display($service['cycle_1'] ?? null) ?> | 
+          <?= $display($service['cycle_2'] ?? null) ?> | 
+          <?= $display($service['cycle_3'] ?? null) ?> | 
+          <?= $display($service['cycle_4'] ?? null) ?>
+        </td>
+      </tr>
+      <tr>
+        <td class="lbl">Punishment</td>
+        <td class="val" colspan="3"><?= $display($service['punishment_note'] ?? null) ?></td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="print-sec-special">
+    <div class="bio-section-title avoid-break">7. Special Note</div>
+    <table class="bio-table avoid-break">
+      <tr>
+        <td class="lbl">Special Note</td>
+        <td class="val"><?= $display($note['note'] ?? null) ?></td>
+      </tr>
+    </table>
+  </div>
+
+  <?php if ($leaves && count($leaves) > 0): ?>
+  <div class="print-sec-leave">
+    <div class="bio-section-title avoid-break">8. Leave Records</div>
+    <table class="bio-table bio-table-list avoid-break">
+      <tr>
+        <th>From</th>
+        <th>To</th>
+        <th>Type</th>
+        <th>Days</th>
+      </tr>
+      <?php foreach ($leaves as $leave): ?>
+        <tr>
+          <td><?= $displayDate($leave['from_date'] ?? null) ?></td>
+          <td><?= $displayDate($leave['to_date'] ?? null) ?></td>
+          <td><?= htmlspecialchars($leave['leave_type'] === 'Pre Leave' ? 'P/L' : trim(str_ireplace('leave', '', $leave['leave_type'] ?? '-'))) ?></td>
+          <td><?= $display($leave['total_days'] ?? null) ?></td>
+        </tr>
+      <?php endforeach; ?>
+    </table>
+  </div>
+  <?php endif; ?>
+
+  <?php if ($socialLinks): ?>
+  <div class="print-sec-social">
+    <div class="bio-section-title avoid-break">9. Social Links</div>
+    <table class="bio-table avoid-break">
+      <?php foreach ($socialLinks as $link): 
+          $displayUrl = $link['url'];
+          if (strtolower($link['platform']) === 'whatsapp') {
+              $displayUrl = preg_replace('/[^0-9+]/', '', $displayUrl);
+              if (empty($displayUrl)) $displayUrl = $link['url'];
+          } else {
+              $displayUrl = preg_replace('#^https?://(www\.)?#i', '', $displayUrl);
+              $displayUrl = rtrim($displayUrl, '/');
+          }
+      ?>
+        <tr>
+          <td class="lbl" style="width:20%;">
+            <i class="<?= $icons[strtolower($link['platform'])] ?? 'ti ti-link' ?>"></i> 
+            <?= htmlspecialchars(ucfirst($link['platform'])) ?>
+          </td>
+          <td><?= htmlspecialchars($displayUrl) ?></td>
+        </tr>
+      <?php endforeach; ?>
+    </table>
+  </div>
+  <?php endif; ?>
+
+  <div class="print-signature" style="margin-top: 60px; text-align: right; padding-right: 30px; page-break-inside: avoid; break-inside: avoid;">
+    <div style="display: inline-block; text-align: center;">
+      <div style="border-top: 1px dashed #000; width: 220px; padding-top: 5px; font-weight: bold;">
+        Signature
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function printBioData() {
+  Swal.fire({
+    title: 'Print Options',
+    html: `
+      <div style="text-align: left; font-size: 0.9rem;">
+        <label class="form-label fw-bold">Page Size</label>
+        <select id="printPageSize" class="form-select form-select-sm mb-3">
+          <option value="A4">A4</option>
+          <option value="Letter">Letter</option>
+          <option value="Legal">Legal</option>
+        </select>
+        <label class="form-label fw-bold">General Options</label>
+        <div class="form-check mb-3">
+          <input class="form-check-input" type="checkbox" id="ps_photo" checked>
+          <label class="form-check-label" for="ps_photo">Include Photo</label>
+        </div>
+        <label class="form-label fw-bold">Sections to Print</label>
+        <div class="form-check mb-1">
+          <input class="form-check-input" type="checkbox" id="ps_contact" checked>
+          <label class="form-check-label" for="ps_contact">2. Contact & Address</label>
+        </div>
+        <div class="form-check mb-1">
+          <input class="form-check-input" type="checkbox" id="ps_family" checked>
+          <label class="form-check-label" for="ps_family">3. Family Information</label>
+        </div>
+        <div class="form-check mb-1">
+          <input class="form-check-input" type="checkbox" id="ps_health" checked>
+          <label class="form-check-label" for="ps_health">4. Health Details</label>
+        </div>
+        <div class="form-check mb-1">
+          <input class="form-check-input" type="checkbox" id="ps_training" checked>
+          <label class="form-check-label" for="ps_training">5. Training & Qualifications</label>
+        </div>
+        <div class="form-check mb-1">
+          <input class="form-check-input" type="checkbox" id="ps_perf" checked>
+          <label class="form-check-label" for="ps_perf">6. Performance & Checks</label>
+        </div>
+        <div class="form-check mb-1">
+          <input class="form-check-input" type="checkbox" id="ps_special" checked>
+          <label class="form-check-label" for="ps_special">7. Special Note</label>
+        </div>
+        <?php if ($leaves && count($leaves) > 0): ?>
+        <div class="form-check mb-1">
+          <input class="form-check-input" type="checkbox" id="ps_leave" checked>
+          <label class="form-check-label" for="ps_leave">8. Leave Records</label>
+        </div>
+        <?php endif; ?>
+        <?php if ($socialLinks): ?>
+        <div class="form-check mb-1">
+          <input class="form-check-input" type="checkbox" id="ps_social" checked>
+          <label class="form-check-label" for="ps_social">9. Social Links</label>
+        </div>
+        <?php endif; ?>
+      </div>
+    `,
+    showCancelButton: true,
+    confirmButtonText: '<i class="ti ti-printer"></i> Print',
+    confirmButtonColor: '#0d6efd',
+    focusConfirm: false,
+    preConfirm: () => {
+      return {
+        pageSize: document.getElementById('printPageSize').value,
+        photo: document.getElementById('ps_photo').checked,
+        contact: document.getElementById('ps_contact').checked,
+        family: document.getElementById('ps_family').checked,
+        health: document.getElementById('ps_health').checked,
+        training: document.getElementById('ps_training').checked,
+        perf: document.getElementById('ps_perf').checked,
+        special: document.getElementById('ps_special').checked,
+        leave: document.getElementById('ps_leave') ? document.getElementById('ps_leave').checked : false,
+        social: document.getElementById('ps_social') ? document.getElementById('ps_social').checked : false
+      }
+    }
+  }).then((result) => {
+    if (result.isConfirmed) {
+      setTimeout(() => {
+        executePrint(result.value);
+      }, 500);
+    }
+  });
+}
+
+function executePrint(options) {
+  let styleTag = document.getElementById('dynamic-print-styles');
+  if (!styleTag) {
+    styleTag = document.createElement('style');
+    styleTag.id = 'dynamic-print-styles';
+    document.body.appendChild(styleTag);
+  }
+  
+  let css = '@page { size: ' + options.pageSize + '; margin: 12mm; }';
+  if (!options.photo) css += ' @media print { .bio-photo-box img { display: none !important; } }';
+  if (!options.contact) css += ' @media print { .print-sec-contact { display: none !important; } }';
+  if (!options.family) css += ' @media print { .print-sec-family { display: none !important; } }';
+  if (!options.health) css += ' @media print { .print-sec-health { display: none !important; } }';
+  if (!options.training) css += ' @media print { .print-sec-training { display: none !important; } }';
+  if (!options.perf) css += ' @media print { .print-sec-perf { display: none !important; } }';
+  if (!options.special) css += ' @media print { .print-sec-special { display: none !important; } }';
+  if (!options.leave) css += ' @media print { .print-sec-leave { display: none !important; } }';
+  if (!options.social) css += ' @media print { .print-sec-social { display: none !important; } }';
+  
+  styleTag.innerHTML = css;
+  
+  var originalTitle = document.title;
+  document.title = "<?= addslashes(htmlspecialchars($person['personal_number'] . ' ' . ($person['rank_name'] ?? '') . ' ' . $person['name'])) ?>";
+  
+  window.print();
+  
+  setTimeout(function() {
+    document.title = originalTitle;
+  }, 1000);
+}
+</script>
 
 <?php include __DIR__ . '/../includes/footer.php'; ?>

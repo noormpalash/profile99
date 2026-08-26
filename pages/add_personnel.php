@@ -380,7 +380,12 @@ $appointments = LookupManager::getAll('appointments');
         </div>
         <div class="col-md-3">
           <label class="form-label small">RET (Result)</label>
-          <input type="text" name="ret" class="form-control" value="<?= htmlspecialchars($old['ret'] ?? '') ?>">
+          <select name="ret" class="form-select">
+            <option value="">Select...</option>
+            <option value="PASS" <?= ($old['ret'] ?? '') === 'PASS' ? 'selected' : '' ?>>PASS</option>
+            <option value="FAIL" <?= ($old['ret'] ?? '') === 'FAIL' ? 'selected' : '' ?>>FAIL</option>
+            <option value="NOT ATTENDING" <?= ($old['ret'] ?? '') === 'NOT ATTENDING' ? 'selected' : '' ?>>NOT ATTENDING</option>
+          </select>
         </div>
         <div class="col-md-3">
           <label class="form-label small">Speed March (Result)</label>
@@ -575,8 +580,8 @@ $appointments = LookupManager::getAll('appointments');
       <div class="row mb-3">
         <?php foreach (['facebook' => 'Facebook', 'linkedin' => 'LinkedIn', 'whatsapp' => 'WhatsApp', 'twitter' => 'Twitter'] as $key => $label): ?>
           <?php
-          $inputType = $key === 'whatsapp' ? 'tel' : 'url';
-          $placeholder = $key === 'whatsapp' ? 'e.g. +8801XXXXXXXXX' : 'https://';
+          $inputType = $key === 'whatsapp' ? 'tel' : 'text';
+          $placeholder = $key === 'whatsapp' ? 'e.g. +8801XXXXXXXXX' : 'username / link';
           $val = $old['social_links'][$key] ?? '';
           if ($key === 'whatsapp' && strpos($val, 'https://wa.me/') === 0) {
             $val = substr($val, 14);

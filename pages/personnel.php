@@ -50,7 +50,9 @@ $districts = bangladeshDistricts();
         <div class="text-muted">Manage records and use advanced filters to narrow the list.</div>
       </div>
       <div class="d-flex gap-2 flex-wrap align-items-center">
+        <?php if (Auth::hasPermission('print_records')): ?>
         <button type="button" class="btn-print no-print" onclick="printPersonnelList()"><i class="ti ti-printer"></i> Print List</button>
+        <?php endif; ?>
         <?php if (Auth::hasPermission('add_personnel')): ?>
         <a href="add_personnel.php" class="btn btn-primary btn-sm no-print">Add personnel</a>
         <?php endif; ?>
@@ -102,8 +104,19 @@ $districts = bangladeshDistricts();
                 <label class="form-label small text-secondary fw-medium">Status</label>
                 <select name="status" class="form-select">
                   <option value="">All statuses</option>
-                  <?php foreach (['active','on_leave','training','punishment','retired'] as $status): ?>
-                    <option value="<?= $status ?>" <?= $filters['status'] === $status ? 'selected' : '' ?>><?= ucfirst(str_replace('_', ' ', $status)) ?></option>
+                  <?php 
+                  $statusOptions = [
+                      'active' => 'Active', 
+                      'on_leave' => 'On Leave (Any)', 
+                      'leave_casual' => 'On Leave (Casual)', 
+                      'leave_pre' => 'On Leave (Pre Leave)', 
+                      'leave_weekend' => 'On Leave (Weekend)', 
+                      'leave_medical' => 'On Leave (Medical)', 
+                      'leave_recreation' => 'On Leave (Recreation)', 
+                      'cmh' => 'CMH', 'trg' => 'TRG', 'cmd' => 'CMD', 'att' => 'ATT', 'goc_gd' => 'GOC GD', 'suspend' => 'Suspend', 'osl' => 'OSL', 'awol' => 'AWOL'
+                  ];
+                  foreach ($statusOptions as $val => $label): ?>
+                    <option value="<?= $val ?>" <?= $filters['status'] === $val ? 'selected' : '' ?>><?= htmlspecialchars($label) ?></option>
                   <?php endforeach; ?>
                 </select>
               </div>
@@ -245,7 +258,7 @@ $districts = bangladeshDistricts();
     <div class="print-only d-none">
       <h3 id="customPrintHeading" style="text-align:center; margin-bottom: 5px; font-weight: bold;"></h3>
       <h5 id="customPrintSubHeading" style="text-align:center; margin-bottom: 20px; font-weight: normal; font-size: 14pt;"></h5>
-      <table class="table table-bordered">
+      <table class="table table-bordered" style="width: 100% !important; margin: 0 auto !important; text-align: center;">
         <thead>
           <tr>
             <th>Ser</th>
@@ -263,16 +276,23 @@ $districts = bangladeshDistricts();
               'Sergeant' => 6, 'Corporal' => 7, 'Lance Corporal' => 8, 
               'Sainik' => 9, 'CK' => 10, 'NC(E)' => 11, 'NC(U)' => 12, 'ATT' => 13
           ];
+          $statusFilter = $filters['status'] ?? '';
+          $isLeaveFilter = ($statusFilter === 'on_leave' || strpos($statusFilter, 'leave_') === 0);
+          
           foreach ($people as $p): 
               $rName = $p['rank_name'] ?? '';
               $weight = $rankWeights[$rName] ?? 99;
           ?>
           <tr data-pno="<?= htmlspecialchars($p['personal_number']) ?>" data-seniority="<?= $weight ?>">
-            <td class="serial-col"></td>
-            <td><?= htmlspecialchars($p['personal_number']) ?></td>
-            <td><?= htmlspecialchars($p['rank_name'] ?? '-') ?></td>
-            <td><?= htmlspecialchars($p['name']) ?></td>
-            <td></td> <!-- Empty for handwritten remarks -->
+            <td class="serial-col" style="text-align: center; vertical-align: middle;"></td>
+            <td style="text-align: center; vertical-align: middle;"><?= htmlspecialchars($p['personal_number']) ?></td>
+            <td style="text-align: center; vertical-align: middle;"><?= htmlspecialchars($p['rank_name'] ?? '-') ?></td>
+            <td style="text-align: left; vertical-align: middle; padding-left: 10px !important;"><?= htmlspecialchars($p['name']) ?></td>
+            <td style="text-align: left; vertical-align: middle;">
+              <?php if ($isLeaveFilter && !empty($p['current_leave_from']) && !empty($p['current_leave_to'])): ?>
+                <?= date('d/m/y', strtotime($p['current_leave_from'])) ?> to <?= date('d/m/y', strtotime($p['current_leave_to'])) ?>
+              <?php endif; ?>
+            </td>
           </tr>
           <?php endforeach; ?>
         </tbody>
@@ -291,7 +311,8 @@ function printPersonnelList() {
             '<input id="printSubHeading" class="swal2-input" placeholder="Sub-heading (optional)" style="max-width: 90%; margin: 10px auto;">' +
             '<div style="text-align:left; width: 90%; margin: 10px auto 0; font-size:14px;">Date (optional):</div>' +
             '<input type="date" id="printDate" class="swal2-input" style="max-width: 90%; margin: 5px auto 10px;">' +
-            '<div style="text-align:left; width: 90%; margin: 10px auto 0; font-size:14px;"><label><input type="checkbox" id="maintainSeniority" class="form-check-input me-1" checked> Maintain Army Seniority</label></div>' +
+            '<div style="text-align:left; width: 90%; margin: 10px auto 0; font-size:14px;"><label><input type="checkbox" id="maintainSeniority" class="form-check-input me-1" checked onchange="document.getElementById(\'maintainSeniorityByPNo\').checked = !this.checked"> Maintain Army Seniority</label></div>' +
+            '<div style="text-align:left; width: 90%; margin: 10px auto 0; font-size:14px;"><label><input type="checkbox" id="maintainSeniorityByPNo" class="form-check-input me-1" onchange="document.getElementById(\'maintainSeniority\').checked = !this.checked"> Maintain Army Seniority by Personal No</label></div>' +
             '<div style="text-align:left; width: 90%; margin: 10px auto 0; font-size:14px;">Page Size:</div>' +
             '<select id="printPageSize" class="swal2-select" style="max-width: 90%; margin: 5px auto 10px;"><option value="A4">A4</option><option value="Legal">Legal</option><option value="Letter">Letter</option></select>',
         focusConfirm: false,
@@ -303,7 +324,8 @@ function printPersonnelList() {
                 subHeading: document.getElementById('printSubHeading').value,
                 date: document.getElementById('printDate').value,
                 pageSize: document.getElementById('printPageSize').value,
-                maintainSeniority: document.getElementById('maintainSeniority').checked
+                maintainSeniority: document.getElementById('maintainSeniority').checked,
+                maintainSeniorityByPNo: document.getElementById('maintainSeniorityByPNo').checked
             }
         }
     }).then((result) => {
@@ -335,6 +357,14 @@ function printPersonnelList() {
             const printTbody = document.getElementById('printPersonnelTbody');
             let printRowsArray = Array.from(document.querySelectorAll('#printPersonnelTbody tr'));
             
+            const comparePNo = (pno1, pno2) => {
+                const a = pno1.toUpperCase();
+                const b = pno2.toUpperCase();
+                if (a.startsWith('BJO') && !b.startsWith('BJO')) return -1;
+                if (!a.startsWith('BJO') && b.startsWith('BJO')) return 1;
+                return a.localeCompare(b);
+            };
+
             if (result.value.maintainSeniority) {
                 printRowsArray.sort((a, b) => {
                     const wA = parseInt(a.getAttribute('data-seniority')) || 99;
@@ -343,9 +373,16 @@ function printPersonnelList() {
                     // fallback to P No
                     const pnoA = a.getAttribute('data-pno') || '';
                     const pnoB = b.getAttribute('data-pno') || '';
-                    return pnoA.localeCompare(pnoB);
+                    return comparePNo(pnoA, pnoB);
                 });
                 // Re-append to DOM to visually sort them
+                printRowsArray.forEach(row => printTbody.appendChild(row));
+            } else if (result.value.maintainSeniorityByPNo) {
+                printRowsArray.sort((a, b) => {
+                    const pnoA = a.getAttribute('data-pno') || '';
+                    const pnoB = b.getAttribute('data-pno') || '';
+                    return comparePNo(pnoA, pnoB);
+                });
                 printRowsArray.forEach(row => printTbody.appendChild(row));
             }
 

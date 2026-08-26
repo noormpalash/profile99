@@ -2,10 +2,10 @@
 -- version 5.2.1
 -- https://www.phpmyadmin.net/
 --
--- Host: localhost
--- Generation Time: Aug 20, 2026 at 09:41 AM
--- Server version: 10.4.28-MariaDB
--- PHP Version: 8.2.4
+-- Host: 127.0.0.1
+-- Generation Time: Aug 23, 2026 at 03:19 PM
+-- Server version: 10.4.32-MariaDB
+-- PHP Version: 8.2.12
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -345,7 +345,26 @@ INSERT INTO `activity_logs` (`id`, `user_id`, `action_type`, `target_personnel_i
 (303, 4, 'logout', NULL, '{\"username\":\"palash\"}', '::1', '2026-08-20 07:40:08'),
 (304, 1, 'login', NULL, '{\"username\":\"superadmin\"}', '::1', '2026-08-20 07:40:19'),
 (305, 1, 'logout', NULL, '{\"username\":\"superadmin\"}', '::1', '2026-08-20 07:40:36'),
-(306, 4, 'login', NULL, '{\"username\":\"palash\"}', '::1', '2026-08-20 07:40:40');
+(306, 4, 'login', NULL, '{\"username\":\"palash\"}', '::1', '2026-08-20 07:40:40'),
+(307, 4, 'login', NULL, '{\"username\":\"palash\"}', '::1', '2026-08-22 03:54:18'),
+(308, 4, 'login', NULL, '{\"username\":\"palash\"}', '::1', '2026-08-22 04:37:54'),
+(309, 4, 'logout', NULL, '{\"username\":\"palash\"}', '::1', '2026-08-22 04:38:40'),
+(310, 4, 'login', NULL, '{\"username\":\"palash\"}', '192.168.0.101', '2026-08-22 13:48:40'),
+(311, 9, 'login', NULL, '{\"username\":\"rifat\"}', '::1', '2026-08-22 15:03:49'),
+(312, 9, 'edit', 9, '{\"details\":\"Father Mobile changed from 01725774202 to empty, Social Links updated\"}', '::1', '2026-08-22 15:05:02'),
+(313, 9, 'edit', 7, '{\"details\":\"Moq updated, Moq Result updated, Retirement Date set to 2041-07-23, Children Count changed from 0 to 01\"}', '::1', '2026-08-22 15:07:27'),
+(314, 9, 'edit', 10, '{\"details\":\"Moq updated, Moq Result updated, Social Links updated\"}', '::1', '2026-08-22 15:08:26'),
+(315, 9, 'edit', 11, '{\"details\":\"Cadre updated, Moq updated, Moq Result updated, Cycle 3 set to Group Training\"}', '::1', '2026-08-22 15:11:29'),
+(316, 9, 'add', 20, '{\"details\":\"Added personnel: MD:SAJIB MIA\"}', '::1', '2026-08-22 15:30:26'),
+(317, 9, 'logout', NULL, '{\"username\":\"rifat\"}', '::1', '2026-08-22 16:14:58'),
+(318, 9, 'login', NULL, '{\"username\":\"rifat\"}', '::1', '2026-08-22 16:15:14'),
+(319, 9, 'login', NULL, '{\"username\":\"rifat\"}', '::1', '2026-08-22 16:16:05'),
+(320, 9, 'logout', NULL, '{\"username\":\"rifat\"}', '::1', '2026-08-22 16:54:41'),
+(321, 4, 'login', NULL, '{\"username\":\"palash\"}', '192.168.0.107', '2026-08-23 04:39:18'),
+(322, 4, 'edit', 5, '{\"details\":\"Status changed from cmh to active, Social Links updated\"}', '192.168.0.107', '2026-08-23 04:39:40'),
+(323, 3, 'login', NULL, '{\"username\":\"user\"}', '192.168.0.107', '2026-08-23 05:29:01'),
+(324, 5, 'login', NULL, '{\"username\":\"oc\"}', '::1', '2026-08-23 05:31:37'),
+(325, 5, 'login', NULL, '{\"username\":\"oc\"}', '127.0.0.1', '2026-08-23 08:14:23');
 
 -- --------------------------------------------------------
 
@@ -657,7 +676,7 @@ CREATE TABLE `personnel` (
 
 INSERT INTO `personnel` (`id`, `personal_number`, `name`, `photo_path`, `rank_id`, `unit_id`, `cadre_id`, `platoon_id`, `blood_group_id`, `batch`, `mobile_number`, `address`, `status`, `created_at`, `appointment_id`, `detailed_address`, `vill`, `po`, `ps`, `nid`) VALUES
 (2, '4047810', 'Noor Mohammad Palash', '4047810_1785047584.jpg', 2, 4, NULL, 4, 3, '68TH', '01914331734', 'Gazipur', 'active', '2026-07-25 04:44:16', 3, NULL, 'Noyonpur', 'Rajendrapur Cantt', 'Gazipur', '5997683262'),
-(5, 'BJO62143', 'Mohammad Kamruzzaman', 'BJO62143_1785818735.jpg', 7, 5, NULL, 5, 3, '51TH', '01916600701', 'Mymensingh', 'cmh', '2026-08-04 04:39:51', 14, NULL, 'Tarati', 'Gosai Candura', 'Ishwrganj', '3709501880'),
+(5, 'BJO62143', 'Mohammad Kamruzzaman', 'BJO62143_1785818735.jpg', 7, 5, NULL, 5, 3, '51TH', '01916600701', 'Mymensingh', 'active', '2026-08-04 04:39:51', 14, NULL, 'Tarati', 'Gosai Candura', 'Ishwrganj', '3709501880'),
 (6, '4043576', 'Md Mahabubul Haqu', '4043576_1785820568.jpg', 1, NULL, NULL, 5, 3, '64TH', '01623252944', 'Kishoreganj', 'active', '2026-08-04 05:12:34', 15, NULL, 'Kaykurdia', 'Jangal Bari', 'Karim Ganj', NULL),
 (7, '4063639', 'Dujahan Mia', NULL, 4, NULL, NULL, 1, 3, '18/3', '01913159987', 'Sherpur', 'active', '2026-08-16 05:13:25', NULL, NULL, 'Bakshabaid', 'Doherper', 'Sreebordi', NULL),
 (8, '4056907', 'Md Al Mamun Asad Sarkar', NULL, 4, 4, NULL, 2, 7, '16', '01309171806', 'Sirajganj', 'active', '2026-08-16 08:04:43', NULL, NULL, 'Teyashia', 'Kollanpur', 'Belkuci', NULL),
@@ -665,7 +684,8 @@ INSERT INTO `personnel` (`id`, `personal_number`, `name`, `photo_path`, `rank_id
 (10, '4049727', 'Sahadeb Chandra Ray ', NULL, 2, 45, NULL, 2, 5, '72TH', '01872617508', 'Nilphamari', 'active', '2026-08-17 14:18:11', NULL, NULL, 'Sonoray', 'Dhoroani', 'Nilphamari', '8254476586'),
 (11, '4047131', 'Sishir Ranjan Howlader', NULL, 2, 40, NULL, 2, 5, '67', '01736039554', 'Barguna', 'active', '2026-08-17 14:39:33', NULL, NULL, 'Kismot Choto mokamia', 'Chotomokmia', 'Betagi', '5953245270'),
 (12, '4041878', 'MD SAIFUL ISLAM SORKER', NULL, 1, 29, NULL, 2, 5, '62', '01729140588', 'Brahmanbaria', 'active', '2026-08-17 15:17:23', NULL, NULL, 'JONAR CHAIR', 'BURBURIA', 'BANCHARAM PUR', '9149298607'),
-(16, '4065993', 'MD:MAMUDUL HASAN ', NULL, 4, 10, NULL, 2, 5, '19/2', '01791667944', 'Sherpur', 'active', '2026-08-19 09:21:15', NULL, NULL, 'Char khar char', 'Tabir char', 'Sador', '4225832767');
+(16, '4065993', 'MD:MAMUDUL HASAN ', NULL, 4, 10, NULL, 2, 5, '19/2', '01791667944', 'Sherpur', 'active', '2026-08-19 09:21:15', NULL, NULL, 'Char khar char', 'Tabir char', 'Sador', '4225832767'),
+(20, '4057606', 'MD:SAJIB MIA', NULL, 4, 49, NULL, 4, 1, '16/1', '01646635505', 'Mymensingh', 'active', '2026-08-22 15:30:26', NULL, NULL, 'Merenga', 'Baropara', 'Nandail', '4205115654');
 
 -- --------------------------------------------------------
 
@@ -726,14 +746,16 @@ INSERT INTO `personnel_cadres` (`id`, `personnel_id`, `cadre_id`) VALUES
 (221, 2, 2),
 (222, 2, 3),
 (223, 2, 4),
-(242, 10, 12),
-(243, 5, 2),
-(244, 5, 1),
 (247, 16, 2),
 (248, 16, 1),
-(249, 9, 7),
-(250, 9, 1),
-(251, 9, 6);
+(252, 9, 7),
+(253, 9, 1),
+(254, 9, 6),
+(255, 10, 12),
+(256, 11, 1),
+(257, 20, 4),
+(258, 5, 2),
+(259, 5, 1);
 
 -- --------------------------------------------------------
 
@@ -757,8 +779,9 @@ INSERT INTO `personnel_courses` (`id`, `personnel_id`, `course_id`, `result`) VA
 (230, 2, 7, 'B+'),
 (231, 2, 3, 'B+'),
 (232, 2, 2, 'B+'),
-(238, 5, 4, 'B+'),
-(239, 9, 8, NULL);
+(240, 9, 8, NULL),
+(241, 20, 8, 'B/Y'),
+(242, 5, 4, 'B+');
 
 -- --------------------------------------------------------
 
@@ -809,10 +832,11 @@ INSERT INTO `personnel_family` (`id`, `personnel_id`, `birthdate`, `marriage_dat
 (59, 6, '1987-01-27', '2016-04-01', 'married', NULL, 2, NULL, 'Abul Kashem Badal', NULL, 'Monjura Begum', NULL, 'Nira Rahman', NULL, 'No', NULL, NULL, NULL, NULL),
 (68, 2, '1989-10-20', '2024-10-21', 'married', NULL, 2, NULL, 'Md. Yousuf', '01914331734', 'Noor Nahar', '01914331734', 'Sharmin Zahan', '01914331734', 'Yes', 'Out Living', '2026-08-06', '2027-08-05', '12/3 Sankibhanga, Sohid Road, Beside Public School'),
 (69, 8, '1997-05-08', '2023-05-01', 'married', NULL, 1, NULL, 'Md Alal Sarkar', '01748710092', 'Mst Momtaj Begum', NULL, 'Rifat Sultana Ritu', '01704319888', 'No', NULL, NULL, NULL, NULL),
-(70, 7, NULL, NULL, 'married', NULL, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'No', NULL, '2026-08-04', '2027-08-18', NULL),
-(71, 9, '2000-11-15', NULL, 'single', NULL, 0, NULL, 'Md Rofique Bhuyan', '01725774202', 'Mst Sheuly Akter', NULL, NULL, NULL, 'No', NULL, NULL, NULL, NULL),
+(70, 7, NULL, NULL, 'married', NULL, 1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'No', NULL, '2026-08-04', '2027-08-18', NULL),
+(71, 9, '2000-11-15', NULL, 'single', NULL, 0, NULL, 'Md Rofique Bhuyan', NULL, 'Mst Sheuly Akter', NULL, NULL, NULL, 'No', NULL, NULL, NULL, NULL),
 (72, 10, '1992-04-20', '2016-11-25', 'married', NULL, 1, NULL, 'Late Dhirendrnath Ray', NULL, 'Sreemoty Shumitra Rani Ray', '01760758030', 'Niva Rani Ray', '01758934335', 'No', NULL, NULL, NULL, NULL),
-(73, 16, '2001-01-07', '2025-03-07', 'married', NULL, 1, NULL, 'Md Asahak Ali', '01793559810', 'Mst Murshada Begum', NULL, 'Mst Akhi Akter', NULL, 'No', NULL, NULL, NULL, NULL);
+(73, 16, '2001-01-07', '2025-03-07', 'married', NULL, 1, NULL, 'Md Asahak Ali', '01793559810', 'Mst Murshada Begum', NULL, 'Mst Akhi Akter', NULL, 'No', NULL, NULL, NULL, NULL),
+(74, 20, '1998-10-10', '2022-04-04', 'married', NULL, 2, NULL, 'Late MD:Mamun mia', NULL, NULL, 'Mst:Papia Khanom', 'Mst:Mila Akter', '01789851143', 'No', NULL, NULL, NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -835,11 +859,12 @@ CREATE TABLE `personnel_health` (
 
 INSERT INTO `personnel_health` (`id`, `personnel_id`, `medical_category_id`, `height_cm`, `weight_kg`, `any_disease`) VALUES
 (98, 2, 1, 175.00, 74.00, 'Diabetic, L4 & L5 Vertebra lower back pain'),
-(102, 10, 1, 179.00, 76.00, NULL),
 (104, 8, 1, 150.00, 72.00, 'no'),
-(105, 5, 1, 175.00, 79.00, 'No'),
 (107, 16, 1, 5.70, 65.00, 'No'),
-(108, 9, 1, 5.80, 80.00, 'No');
+(109, 9, 1, 5.80, 80.00, 'No'),
+(110, 10, 1, 179.00, 76.00, NULL),
+(111, 20, 1, 5.80, 63.00, 'No'),
+(112, 5, 1, 175.00, 79.00, 'No');
 
 -- --------------------------------------------------------
 
@@ -868,7 +893,7 @@ INSERT INTO `personnel_leaves` (`id`, `personnel_id`, `leave_type`, `from_date`,
 (207, 2, 'Weekend Leave', '2026-07-31', '2026-08-01', 2, '2026-08-16 13:58:59'),
 (208, 2, 'Weekend Leave', '2026-06-09', '2026-06-10', 2, '2026-08-16 13:58:59'),
 (209, 7, 'Weekend Leave', '2026-08-14', '2026-08-15', 2, '2026-08-19 05:07:22'),
-(211, 5, 'Casual Leave', '2026-08-16', '2026-08-18', 3, '2026-08-19 05:39:08');
+(212, 5, 'Casual Leave', '2026-08-16', '2026-08-18', 3, '2026-08-23 04:39:40');
 
 -- --------------------------------------------------------
 
@@ -890,14 +915,28 @@ CREATE TABLE `personnel_moqs` (
 INSERT INTO `personnel_moqs` (`id`, `personnel_id`, `moq_id`, `result`) VALUES
 (42, 2, 5, 'Pass'),
 (43, 2, 10, 'PASS'),
-(58, 7, 2, 'PASS'),
-(59, 7, 1, 'PASS'),
-(64, 10, 5, 'PASS'),
-(65, 10, 10, 'PASS'),
 (68, 16, 11, 'Pass'),
 (69, 16, 1, 'B+'),
-(70, 9, 11, NULL),
-(71, 9, 1, NULL);
+(72, 9, 11, NULL),
+(73, 9, 1, NULL),
+(74, 7, 2, 'PASS'),
+(75, 7, 11, 'pass'),
+(76, 7, 1, 'PASS'),
+(77, 10, 2, 'pass'),
+(78, 10, 5, 'PASS'),
+(79, 10, 11, 'PASS'),
+(80, 10, 1, 'PASS'),
+(81, 10, 10, 'PASS'),
+(82, 11, 2, 'PASS'),
+(83, 11, 5, 'PASS'),
+(84, 11, 11, 'PASS'),
+(85, 11, 1, 'PASS'),
+(86, 11, 4, 'pass'),
+(87, 11, 10, 'pass'),
+(88, 20, 2, 'B+'),
+(89, 20, 11, 'PASS'),
+(90, 20, 1, 'B+'),
+(91, 20, 10, 'pass');
 
 -- --------------------------------------------------------
 
@@ -919,7 +958,7 @@ CREATE TABLE `personnel_notes` (
 INSERT INTO `personnel_notes` (`id`, `personnel_id`, `note`, `created_at`) VALUES
 (89, 2, 'Special Note', '2026-08-16 13:58:59'),
 (91, 8, 'aaa', '2026-08-18 02:04:39'),
-(92, 5, 'He is performing the duties of an SM alongside the Senior JCO.', '2026-08-19 05:39:08');
+(93, 5, 'He is performing the duties of an SM alongside the Senior JCO.', '2026-08-23 04:39:40');
 
 -- --------------------------------------------------------
 
@@ -951,12 +990,14 @@ CREATE TABLE `personnel_service` (
 INSERT INTO `personnel_service` (`id`, `personnel_id`, `admission_date`, `retirement_date`, `un_mission`, `punishment_note`, `ipft_1st`, `ipft_2nd`, `ret`, `speed_march`, `cycle_1`, `cycle_2`, `cycle_3`, `cycle_4`) VALUES
 (111, 6, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Administration', 'Training', 'Administration', 'Pre Leave'),
 (121, 2, '2008-01-14', '2031-01-14', 'BANBAT 1/20', 'No', 'PASS', NULL, 'PASS', '1', 'Administration', 'Pre Leave', 'Group Training', 'Administration'),
-(127, 10, '2010-01-10', '2035-09-30', 'BANBAT 5', NULL, 'PASS', NULL, 'PASS', '1', 'Administration', 'Group Training', 'Training', 'Pre Leave'),
 (129, 8, '2016-01-23', NULL, NULL, NULL, 'PASS', NULL, NULL, '1', 'Administration', 'Group Training', 'Training', 'Administration'),
-(130, 7, '2018-07-22', NULL, NULL, NULL, 'PASS', NULL, NULL, '1', 'Administration', NULL, NULL, NULL),
-(132, 5, '1998-11-01', '2017-11-10', 'MONUSCO', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
 (134, 16, '2019-01-27', '2042-01-26', NULL, NULL, 'PASS', NULL, 'Pass', '04', 'Pre Leave', 'Training', 'Group Training', 'Administration'),
-(135, 9, '2019-01-27', '2042-01-26', NULL, NULL, NULL, NULL, NULL, NULL, 'Administration', 'Administration', 'Group Training', 'Pre Leave');
+(136, 9, '2019-01-27', '2042-01-26', NULL, NULL, NULL, NULL, NULL, NULL, 'Administration', 'Administration', 'Group Training', 'Pre Leave'),
+(137, 7, '2018-07-22', '2041-07-23', NULL, NULL, 'PASS', NULL, NULL, '1', 'Administration', NULL, NULL, NULL),
+(138, 10, '2010-01-10', '2035-09-30', 'BANBAT 5', NULL, 'PASS', NULL, 'PASS', '1', 'Administration', 'Group Training', 'Training', 'Pre Leave'),
+(139, 11, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Group Training', NULL),
+(140, 20, '2016-01-16', '2039-01-17', 'Banbat 8', NULL, 'PASS', NULL, 'Pass', '1', NULL, NULL, 'Group Training', 'Administration'),
+(141, 5, '1998-11-01', '2017-11-10', 'MONUSCO', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -980,10 +1021,11 @@ INSERT INTO `personnel_social_links` (`id`, `personnel_id`, `platform`, `url`) V
 (242, 2, 'linkedin', 'https://web.whatsapp.com'),
 (243, 2, 'whatsapp', 'https://web.whatsapp.com'),
 (244, 2, 'twitter', 'https://web.whatsapp.com'),
-(251, 10, 'whatsapp', 'https://wa.me/+8801737218716'),
-(252, 5, 'whatsapp', 'https://wa.me/01916600701'),
 (253, 16, 'whatsapp', 'https://wa.me/01604413166'),
-(254, 9, 'whatsapp', 'https://wa.me/01629042592');
+(255, 9, 'whatsapp', 'https://wa.me/01629042592'),
+(256, 10, 'whatsapp', 'https://wa.me/+8801737218716'),
+(257, 20, 'whatsapp', 'https://wa.me/01646635505'),
+(258, 5, 'whatsapp', 'https://wa.me/01916600701');
 
 -- --------------------------------------------------------
 
@@ -1275,13 +1317,13 @@ CREATE TABLE `users` (
 INSERT INTO `users` (`id`, `name`, `username`, `password_hash`, `role_id`, `status`, `created_at`, `session_token`, `last_activity`) VALUES
 (1, 'Super Admin', 'superadmin', '$2y$10$HcqBKaVW4.5g8IQCYfFwZeGbp09TNYA8sib9yWCoyqOhzTAgnFr3a', 1, 'active', '2026-07-23 07:03:57', NULL, '2026-08-20 13:40:19'),
 (2, 'Admin', 'admin', '$2y$10$BITdlv13i4ZZJERx/b3EKuZE1o/JR1.t8FGLLF58LjDCo2UuY1U16', 2, 'active', '2026-07-25 03:45:14', NULL, NULL),
-(3, 'User', 'User', '$2y$10$H3Fx78KOV4PUqH/XbTNKleFOfkintOdQ63DDcHkabbDeVVjKg8fuO', 3, 'active', '2026-07-25 03:46:03', NULL, '2026-08-16 13:53:51'),
-(4, 'Noor Palash', 'palash', '$2y$10$FpDsy7E3e3QqLObRK/L34.1nHnl4NtogxhvDDHIXa8b3X29gqn9vm', 4, 'active', '2026-07-28 03:39:23', '6807e8ca595d27cf3a805ab6d7dca09d1ae8c72365a53fdf28ce8c95ac0b820c', '2026-08-20 13:40:40'),
-(5, 'OC', 'oc', '$2y$10$OS5UlJ1qadP1uDNaG8J5R.dNK9d95094yU7Zs5DvwMh.s1QG85TiS', 2, 'active', '2026-08-04 04:08:58', NULL, '2026-08-19 20:39:40'),
+(3, 'User', 'User', '$2y$10$H3Fx78KOV4PUqH/XbTNKleFOfkintOdQ63DDcHkabbDeVVjKg8fuO', 3, 'active', '2026-07-25 03:46:03', 'f1de9f7b8b86661bd3bc2a12daa38bd11dbee187313d5e0a8cad45f365843e10', '2026-08-23 11:29:01'),
+(4, 'Noor Palash', 'palash', '$2y$10$FpDsy7E3e3QqLObRK/L34.1nHnl4NtogxhvDDHIXa8b3X29gqn9vm', 4, 'active', '2026-07-28 03:39:23', '4b2e59b89957de9bebf049a4e06d00f44008a2baa58b451cb5d8557c14ef1450', '2026-08-23 10:40:45'),
+(5, 'OC', 'oc', '$2y$10$OS5UlJ1qadP1uDNaG8J5R.dNK9d95094yU7Zs5DvwMh.s1QG85TiS', 2, 'active', '2026-08-04 04:08:58', '7a7731f1e37a4f2a5c2ac6cc4aeda9f382dc241f62b8d8c303716f914c850c7f', '2026-08-23 14:14:23'),
 (6, 'Raj Rahman', 'raj', '$2y$10$hL7/OeVPQDCS1m75AmxjG.mLb/wOdL.aHuFYk.sm1jT6T6kTScdZ6', 6, 'active', '2026-08-06 08:07:13', NULL, '2026-08-19 11:05:58'),
 (7, 'OP', 'op', '$2y$10$A6X1x6IvEJqiIxv0vgNwuOErRGRw/NczHQXQhwdHPT2BWj700xaM.', 5, 'active', '2026-08-14 02:30:28', NULL, '2026-08-19 14:36:11'),
 (8, 'Saiful', 'saiful', '$2y$10$/T7XK0502mBnSChzIPsBSuPiyllOy14fMjmQGE9Y8eIJj.X0.k5z6', 5, 'active', '2026-08-16 14:03:32', NULL, '2026-08-18 09:23:04'),
-(9, 'Rifat', 'rifat', '$2y$10$RJMR.IW6aaCm.S1CltWvke4SWmksFCSKERRcbPD.70/31pokHRs3a', 5, 'active', '2026-08-16 14:03:54', 'a2ef7122b6a7aa5a0b4787c3462eea67ac040ac16da663fac07902d256466721', '2026-08-19 15:52:21');
+(9, 'Rifat', 'rifat', '$2y$10$RJMR.IW6aaCm.S1CltWvke4SWmksFCSKERRcbPD.70/31pokHRs3a', 5, 'active', '2026-08-16 14:03:54', NULL, '2026-08-22 22:22:35');
 
 --
 -- Indexes for dumped tables
@@ -1509,7 +1551,7 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT for table `activity_logs`
 --
 ALTER TABLE `activity_logs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=307;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=326;
 
 --
 -- AUTO_INCREMENT for table `addresses`
@@ -1563,7 +1605,7 @@ ALTER TABLE `permissions`
 -- AUTO_INCREMENT for table `personnel`
 --
 ALTER TABLE `personnel`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=20;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
 
 --
 -- AUTO_INCREMENT for table `personnel_approvals`
@@ -1575,13 +1617,13 @@ ALTER TABLE `personnel_approvals`
 -- AUTO_INCREMENT for table `personnel_cadres`
 --
 ALTER TABLE `personnel_cadres`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=252;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=260;
 
 --
 -- AUTO_INCREMENT for table `personnel_courses`
 --
 ALTER TABLE `personnel_courses`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=240;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=243;
 
 --
 -- AUTO_INCREMENT for table `personnel_education`
@@ -1593,43 +1635,43 @@ ALTER TABLE `personnel_education`
 -- AUTO_INCREMENT for table `personnel_family`
 --
 ALTER TABLE `personnel_family`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=74;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=75;
 
 --
 -- AUTO_INCREMENT for table `personnel_health`
 --
 ALTER TABLE `personnel_health`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=109;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=113;
 
 --
 -- AUTO_INCREMENT for table `personnel_leaves`
 --
 ALTER TABLE `personnel_leaves`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=212;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=213;
 
 --
 -- AUTO_INCREMENT for table `personnel_moqs`
 --
 ALTER TABLE `personnel_moqs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=72;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=92;
 
 --
 -- AUTO_INCREMENT for table `personnel_notes`
 --
 ALTER TABLE `personnel_notes`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=93;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=94;
 
 --
 -- AUTO_INCREMENT for table `personnel_service`
 --
 ALTER TABLE `personnel_service`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=136;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=142;
 
 --
 -- AUTO_INCREMENT for table `personnel_social_links`
 --
 ALTER TABLE `personnel_social_links`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=255;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=259;
 
 --
 -- AUTO_INCREMENT for table `platoons`

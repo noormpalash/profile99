@@ -579,7 +579,9 @@ $allOnLeave = $db->query("SELECT p.id, p.name, p.personal_number, p.photo_path, 
         <div class="text-muted" style="font-size: 0.85rem;">Overview of personnel data &amp; analytics</div>
       </div>
       <div class="d-flex gap-2">
+        <?php if (Auth::hasPermission('print_records')): ?>
         <button type="button" class="btn-print no-print" onclick="printSection(['manpowerSection', 'absentSection'])"><i class="ti ti-printer"></i> Print Paradestate</button>
+        <?php endif; ?>
       </div>
     </div>
 
@@ -625,7 +627,9 @@ $allOnLeave = $db->query("SELECT p.id, p.name, p.personal_number, p.photo_path, 
           <div class="chart-card-header px-1 pb-3 pt-0 d-flex justify-content-between align-items-center">
             <h6 style="font-size:1.1rem; letter-spacing:-0.02em;"><i class="ti ti-users-group me-2"
                 style="color:#6366f1"></i>MANPOWER STATE</h6>
+            <?php if (Auth::hasPermission('print_records')): ?>
             <button type="button" class="btn-print no-print" onclick="printSection('manpowerSection')"><i class="ti ti-printer"></i> Print</button>
+            <?php endif; ?>
           </div>
           <div class="premium-table-container">
             <div class="premium-table-inner">
@@ -688,7 +692,9 @@ $allOnLeave = $db->query("SELECT p.id, p.name, p.personal_number, p.photo_path, 
           <div class="chart-card-header px-1 pb-3 pt-0 d-flex justify-content-between align-items-center">
             <h6 style="font-size:1.1rem; letter-spacing:-0.02em;"><i class="ti ti-user-off me-2"
                 style="color:#ef4444"></i>ABSENT STATE</h6>
+            <?php if (Auth::hasPermission('print_records')): ?>
             <button type="button" class="btn-print no-print" onclick="printSection('absentSection')"><i class="ti ti-printer"></i> Print</button>
+            <?php endif; ?>
           </div>
           <div class="premium-table-container">
             <div class="premium-table-inner">
@@ -798,7 +804,9 @@ $allOnLeave = $db->query("SELECT p.id, p.name, p.personal_number, p.photo_path, 
         <div class="chart-card animate-in delay-6" style="border: none; box-shadow: none; background: transparent; padding: 0;">
           <div class="chart-card-header d-flex align-items-center justify-content-between px-1 pb-3 pt-0">
             <h6 style="font-size:1.1rem; letter-spacing:-0.02em;"><i class="ti ti-calendar-off me-2" style="color:#f59e0b"></i>Currently On Leave</h6>
+            <?php if (Auth::hasPermission('print_records')): ?>
             <button type="button" class="btn-print no-print" onclick="printSection('onLeaveSection', 'Currently On Leave')"><i class="ti ti-printer"></i> Print</button>
+            <?php endif; ?>
           </div>
           <div class="table-responsive no-print" style="background: #fff; border-radius: 12px; border: 1px solid #eee; overflow: hidden;">
             <table class="table table-hover mb-0">

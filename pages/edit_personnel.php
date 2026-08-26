@@ -444,7 +444,12 @@ foreach ($socialLinks as $link) {
             </div>
             <div class="col-md-3">
               <label class="form-label small">RET (Result)</label>
-              <input type="text" name="ret" class="form-control" value="<?= htmlspecialchars($service['ret'] ?? '') ?>">
+              <select name="ret" class="form-select">
+                <option value="">Select...</option>
+                <option value="PASS" <?= ($service['ret'] ?? '') === 'PASS' ? 'selected' : '' ?>>PASS</option>
+                <option value="FAIL" <?= ($service['ret'] ?? '') === 'FAIL' ? 'selected' : '' ?>>FAIL</option>
+                <option value="NOT ATTENDING" <?= ($service['ret'] ?? '') === 'NOT ATTENDING' ? 'selected' : '' ?>>NOT ATTENDING</option>
+              </select>
             </div>
             <div class="col-md-3">
               <label class="form-label small">Speed March (Result)</label>
@@ -697,8 +702,8 @@ foreach ($socialLinks as $link) {
         <div class="row mb-3">
           <?php foreach (['facebook' => 'Facebook', 'linkedin' => 'LinkedIn', 'whatsapp' => 'WhatsApp', 'twitter' => 'Twitter'] as $key => $label): ?>
             <?php
-            $inputType = $key === 'whatsapp' ? 'tel' : 'url';
-            $placeholder = $key === 'whatsapp' ? 'e.g. +8801XXXXXXXXX' : 'https://';
+            $inputType = $key === 'whatsapp' ? 'tel' : 'text';
+            $placeholder = $key === 'whatsapp' ? 'e.g. +8801XXXXXXXXX' : 'username / link';
             $val = $socialUrls[$key] ?? '';
             if ($key === 'whatsapp' && strpos($val, 'https://wa.me/') === 0) {
               $val = substr($val, 14);

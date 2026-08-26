@@ -37,7 +37,7 @@ $columns = [
     'I' => ['title' => 'Status', 'width' => 15, 'desc' => 'Select from dropdown'],
     'J' => ['title' => 'Batch', 'width' => 15, 'desc' => ''],
     'K' => ['title' => 'Mobile Number', 'width' => 20, 'desc' => ''],
-    'L' => ['title' => 'District', 'width' => 20, 'desc' => ''],
+    'L' => ['title' => 'District', 'width' => 20, 'desc' => 'Select from dropdown'],
     'M' => ['title' => 'Vill', 'width' => 20, 'desc' => ''],
     'N' => ['title' => 'PO', 'width' => 20, 'desc' => ''],
     'O' => ['title' => 'PS', 'width' => 20, 'desc' => ''],
@@ -47,7 +47,7 @@ $columns = [
     'S' => ['title' => 'Punishment Note', 'width' => 30, 'desc' => ''],
     'T' => ['title' => 'IPFT 1st', 'width' => 15, 'desc' => 'PASS, FAIL, NOT ATTENDING'],
     'U' => ['title' => 'IPFT 2nd', 'width' => 15, 'desc' => 'PASS, FAIL, NOT ATTENDING'],
-    'V' => ['title' => 'RET', 'width' => 15, 'desc' => ''],
+    'V' => ['title' => 'RET', 'width' => 15, 'desc' => 'PASS, FAIL, NOT ATTENDING'],
     'W' => ['title' => 'Speed March', 'width' => 15, 'desc' => ''],
     'X' => ['title' => 'Cycle 1', 'width' => 15, 'desc' => 'Select from dropdown'],
     'Y' => ['title' => 'Cycle 2', 'width' => 15, 'desc' => 'Select from dropdown'],
@@ -104,6 +104,12 @@ foreach ($dateCols as $col) {
     $sheet->getStyle($col . '2:' . $col . '1000')->getNumberFormat()->setFormatCode('yyyy-mm-dd');
 }
 
+// Text Formats (to prevent stripping leading zeros)
+$textCols = ['A', 'C', 'K', 'AL', 'AN', 'AP'];
+foreach ($textCols as $col) {
+    $sheet->getStyle($col . '2:' . $col . '1000')->getNumberFormat()->setFormatCode('@');
+}
+
 // Hidden sheet for lookups to bypass 255-char limit
 $lookupSheet = $spreadsheet->createSheet();
 $lookupSheet->setTitle('Lookups');
@@ -140,11 +146,31 @@ foreach ($lookups as $mainCol => $info) {
     }
 }
 
+// Add District to lookups
+$districts = bangladeshDistricts();
+$distCol = 'G';
+$lr = 1;
+foreach ($districts as $district) {
+    $lookupSheet->setCellValue($distCol . $lr, $district);
+    $lr++;
+}
+if ($lr > 1) {
+    $maxRow = $lr - 1;
+    $validation = $sheet->getCell('L2')->getDataValidation();
+    $validation->setType(DataValidation::TYPE_LIST)
+               ->setErrorStyle(DataValidation::STYLE_INFORMATION)
+               ->setAllowBlank(true)
+               ->setShowDropDown(true)
+               ->setFormula1('Lookups!$' . $distCol . '$1:$' . $distCol . '$' . $maxRow);
+    $sheet->setDataValidation('L2:L1000', $validation);
+}
+
 // Hardcoded Dropdowns
 $hardcoded = [
     'I' => '"active,on_leave,cmh,trg,cmd,att,goc_gd,suspend,osl,awol"',
     'T' => '"PASS,FAIL,NOT ATTENDING"',
     'U' => '"PASS,FAIL,NOT ATTENDING"',
+    'V' => '"PASS,FAIL,NOT ATTENDING"',
     'X' => '"Training,Administration,Pre Leave,Group Training"',
     'Y' => '"Training,Administration,Pre Leave,Group Training"',
     'Z' => '"Training,Administration,Pre Leave,Group Training"',
@@ -176,6 +202,7 @@ $demoData = [
     'Q' => '2040-01-01',
     'T' => 'PASS',
     'U' => 'PASS',
+    'V' => 'PASS',
     'X' => 'Training',
     'AB' => '1990-01-01',
     'AD' => 'single',

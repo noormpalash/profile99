@@ -10,7 +10,9 @@ class Personnel {
     // ---- List / Search ----
     public static function all(): array {
         $db = getDB();
-        return $db->query("SELECT p.*, r.name AS rank_name, u.name AS unit_name, b.name AS blood_group_name, a.name AS appointment_name, pf.family_member, pf.living_status
+        return $db->query("SELECT p.*, r.name AS rank_name, u.name AS unit_name, b.name AS blood_group_name, a.name AS appointment_name, pf.family_member, pf.living_status,
+                            (SELECT from_date FROM personnel_leaves WHERE personnel_id = p.id AND CURRENT_DATE >= from_date AND CURRENT_DATE <= to_date LIMIT 1) AS current_leave_from,
+                            (SELECT to_date FROM personnel_leaves WHERE personnel_id = p.id AND CURRENT_DATE >= from_date AND CURRENT_DATE <= to_date LIMIT 1) AS current_leave_to
                             FROM personnel p
                             LEFT JOIN ranks r ON p.rank_id = r.id
                             LEFT JOIN units u ON p.unit_id = u.id
@@ -22,7 +24,9 @@ class Personnel {
 
     public static function filter(array $filters): array {
         $db = getDB();
-        $sql = "SELECT p.*, r.name AS rank_name, u.name AS unit_name, b.name AS blood_group_name, a.name AS appointment_name, pf.family_member, pf.living_status
+        $sql = "SELECT p.*, r.name AS rank_name, u.name AS unit_name, b.name AS blood_group_name, a.name AS appointment_name, pf.family_member, pf.living_status,
+                            (SELECT from_date FROM personnel_leaves WHERE personnel_id = p.id AND CURRENT_DATE >= from_date AND CURRENT_DATE <= to_date LIMIT 1) AS current_leave_from,
+                            (SELECT to_date FROM personnel_leaves WHERE personnel_id = p.id AND CURRENT_DATE >= from_date AND CURRENT_DATE <= to_date LIMIT 1) AS current_leave_to
             FROM personnel p
             LEFT JOIN ranks r ON p.rank_id = r.id
             LEFT JOIN units u ON p.unit_id = u.id
@@ -66,7 +70,23 @@ class Personnel {
         }
 
         $status = trim((string)($filters['status'] ?? ''));
-        if ($status !== '') {
+        if ($status === 'on_leave') {
+            $sql .= " AND (p.status = 'on_leave' OR EXISTS (SELECT 1 FROM personnel_leaves pl WHERE pl.personnel_id = p.id AND CURRENT_DATE >= pl.from_date AND CURRENT_DATE <= pl.to_date))";
+        } elseif ($status === 'active') {
+            $sql .= " AND (p.status = 'active' AND NOT EXISTS (SELECT 1 FROM personnel_leaves pl WHERE pl.personnel_id = p.id AND CURRENT_DATE >= pl.from_date AND CURRENT_DATE <= pl.to_date))";
+        } elseif (strpos($status, 'leave_') === 0) {
+            $leaveTypeMap = [
+                'leave_weekend' => 'Weekend Leave',
+                'leave_casual' => 'Casual Leave',
+                'leave_pre' => 'Pre Leave',
+                'leave_medical' => 'Medical Leave',
+                'leave_recreation' => 'Recreation Leave'
+            ];
+            if (isset($leaveTypeMap[$status])) {
+                $sql .= " AND EXISTS (SELECT 1 FROM personnel_leaves pl WHERE pl.personnel_id = p.id AND pl.leave_type = ? AND CURRENT_DATE >= pl.from_date AND CURRENT_DATE <= pl.to_date)";
+                $params[] = $leaveTypeMap[$status];
+            }
+        } elseif ($status !== '') {
             $sql .= " AND p.status = ?";
             $params[] = $status;
         }
@@ -978,7 +998,7 @@ class Personnel {
         $stmt->execute([$id]);
     }
     
-    public static function importExcel(string $filePath): array {
+    public static function parseExcelForPreview(string $filePath): array {
         require_once __DIR__ . '/../vendor/autoload.php';
         $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($filePath);
         $sheet = $spreadsheet->getActiveSheet();
@@ -1086,16 +1106,17 @@ class Personnel {
                 $stmt = $db->prepare("SELECT id FROM personnel WHERE personal_number = ?");
                 $stmt->execute([$personalNumber]);
                 $id = $stmt->fetchColumn();
-                
-                $perms = ['edit_personnel_basic', 'edit_personnel_status', 'edit_personnel_course', 'edit_personnel_moqs', 'edit_personnel_cadres', 'edit_personnel_education', 'edit_personnel_service', 'edit_personnel_ipft', 'edit_personnel_yearly_plan', 'edit_personnel_family', 'edit_personnel_family_member_status', 'edit_personnel_health', 'edit_personnel_social', 'edit_personnel_notes', 'edit_personnel_leaves'];
 
-                if ($id) {
-                    self::update((int)$id, $data, null, $perms);
-                    $results[] = ['row' => $rowIndex, 'personal_number' => $personalNumber, 'name' => $name, 'status' => 'success', 'message' => 'Updated existing record'];
-                } else {
-                    self::create($data, [], $perms);
-                    $results[] = ['row' => $rowIndex, 'personal_number' => $personalNumber, 'name' => $name, 'status' => 'success', 'message' => 'Created new record'];
-                }
+                $results[] = [
+                    'row' => $rowIndex,
+                    'personal_number' => $personalNumber,
+                    'name' => $name,
+                    'status' => 'success',
+                    'message' => $id ? 'Will update existing record' : 'Will create new record',
+                    'data' => $data,
+                    'rank_id' => $data['rank_id'],
+                    'unit_id' => $data['unit_id']
+                ];
             } catch (Exception $e) {
                 $results[] = ['row' => $rowIndex, 'personal_number' => $personalNumber, 'name' => $name, 'status' => 'error', 'message' => $e->getMessage()];
             }
@@ -1103,6 +1124,40 @@ class Personnel {
         
         return $results;
     }
+    
+    public static function saveImportData(array $rows): array {
+        $results = [];
+        $perms = ['edit_personnel_basic', 'edit_personnel_status', 'edit_personnel_course', 'edit_personnel_moqs', 'edit_personnel_cadres', 'edit_personnel_education', 'edit_personnel_service', 'edit_personnel_ipft', 'edit_personnel_yearly_plan', 'edit_personnel_family', 'edit_personnel_family_member_status', 'edit_personnel_health', 'edit_personnel_social', 'edit_personnel_notes', 'edit_personnel_leaves'];
+
+        foreach ($rows as $item) {
+            if ($item['status'] === 'error') {
+                $results[] = $item;
+                continue;
+            }
+            try {
+                $data = $item['data'];
+                $personalNumber = $data['personal_number'];
+                $name = $data['name'];
+                
+                $db = getDB();
+                $stmt = $db->prepare("SELECT id FROM personnel WHERE personal_number = ?");
+                $stmt->execute([$personalNumber]);
+                $id = $stmt->fetchColumn();
+                
+                if ($id) {
+                    self::update((int)$id, $data, null, $perms);
+                    $results[] = ['row' => $item['row'], 'personal_number' => $personalNumber, 'name' => $name, 'status' => 'success', 'message' => 'Updated existing record'];
+                } else {
+                    self::create($data, [], $perms);
+                    $results[] = ['row' => $item['row'], 'personal_number' => $personalNumber, 'name' => $name, 'status' => 'success', 'message' => 'Created new record'];
+                }
+            } catch (Exception $e) {
+                $results[] = ['row' => $item['row'] ?? '-', 'personal_number' => $item['personal_number'] ?? '-', 'name' => $item['name'] ?? '-', 'status' => 'error', 'message' => $e->getMessage()];
+            }
+        }
+        return $results;
+    }
+
     
     private static function parseExcelDate($cell): ?string {
         $val = $cell->getValue();

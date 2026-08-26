@@ -148,9 +148,20 @@ $districts = bangladeshDistricts();
                   <label class="form-label small text-secondary fw-medium">Status</label>
                   <select name="status" class="form-select">
                     <option value="">All statuses</option>
-                    <?php foreach (['active', 'on_leave', 'training', 'punishment', 'retired'] as $status): ?>
-                      <option value="<?= $status ?>" <?= $filters['status'] === $status ? 'selected' : '' ?>>
-                        <?= ucfirst(str_replace('_', ' ', $status)) ?></option>
+                    <?php 
+                    $statusOptions = [
+                        'active' => 'Active', 
+                        'on_leave' => 'On Leave (Any)', 
+                        'leave_casual' => 'On Leave (Casual)', 
+                        'leave_pre' => 'On Leave (Pre Leave)', 
+                        'leave_weekend' => 'On Leave (Weekend)', 
+                        'leave_medical' => 'On Leave (Medical)', 
+                        'leave_recreation' => 'On Leave (Recreation)', 
+                        'cmh' => 'CMH', 'trg' => 'TRG', 'cmd' => 'CMD', 'att' => 'ATT', 'goc_gd' => 'GOC GD', 'suspend' => 'Suspend', 'osl' => 'OSL', 'awol' => 'AWOL'
+                    ];
+                    foreach ($statusOptions as $val => $label): ?>
+                      <option value="<?= $val ?>" <?= $filters['status'] === $val ? 'selected' : '' ?>>
+                        <?= htmlspecialchars($label) ?></option>
                     <?php endforeach; ?>
                   </select>
                 </div>
