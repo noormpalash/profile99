@@ -22,12 +22,6 @@
         </a>
         <?php endif; ?>
 
-        <?php if (Auth::hasPermission('bulk_import')): ?>
-        <a href="import.php" class="list-group-item list-group-item-action <?= $current==='import.php'?'active':'' ?>">
-          <i class="ti ti-file-import me-2"></i>Bulk Import
-        </a>
-        <?php endif; ?>
-
         <?php if (Auth::hasPermission('approval') || in_array(Auth::role(), ['admin', 'superadmin', 'techadmin'])): 
             $pendingCount = getDB()->query("SELECT COUNT(*) FROM personnel_approvals WHERE status='pending'")->fetchColumn();
         ?>
