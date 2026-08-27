@@ -10,9 +10,8 @@ class DatabaseBackupService
     private string $user;
     private string $password;
     
-    // We try to find the mysqldump/mysql binaries, prioritizing XAMPP path
-    private string $mysqldumpPath = '/Applications/XAMPP/xamppfiles/bin/mysqldump';
-    private string $mysqlPath = '/Applications/XAMPP/xamppfiles/bin/mysql';
+    private string $mysqldumpPath;
+    private string $mysqlPath;
 
     public function __construct()
     {
@@ -21,12 +20,32 @@ class DatabaseBackupService
         $this->user = DB_USER;
         $this->password = DB_PASS;
         
-        // Fallback to standard PATH if XAMPP paths don't exist
-        if (!is_executable($this->mysqldumpPath)) {
-            $this->mysqldumpPath = 'mysqldump';
+        $possibleMysqldumpPaths = [
+            'C:\\xampp\\mysql\\bin\\mysqldump.exe', // Windows XAMPP
+            '/Applications/XAMPP/xamppfiles/bin/mysqldump', // Mac XAMPP
+            '/opt/lampp/bin/mysqldump', // Linux XAMPP
+        ];
+        
+        $possibleMysqlPaths = [
+            'C:\\xampp\\mysql\\bin\\mysql.exe',
+            '/Applications/XAMPP/xamppfiles/bin/mysql',
+            '/opt/lampp/bin/mysql',
+        ];
+        
+        $this->mysqldumpPath = 'mysqldump'; // Fallback to standard PATH
+        foreach ($possibleMysqldumpPaths as $path) {
+            if (is_file($path)) {
+                $this->mysqldumpPath = $path;
+                break;
+            }
         }
-        if (!is_executable($this->mysqlPath)) {
-            $this->mysqlPath = 'mysql';
+        
+        $this->mysqlPath = 'mysql'; // Fallback to standard PATH
+        foreach ($possibleMysqlPaths as $path) {
+            if (is_file($path)) {
+                $this->mysqlPath = $path;
+                break;
+            }
         }
     }
 
@@ -44,8 +63,11 @@ class DatabaseBackupService
         $user = escapeshellarg($this->user);
         $dbName = escapeshellarg($this->dbName);
         
-        // Build the command safely
-        $command = escapeshellcmd($this->mysqldumpPath) . " -h {$host} -u {$user}";
+        // On Windows, escapeshellcmd might cause issues if not used correctly, 
+        // wrapping executable path in quotes is usually safer.
+        $cmdBinary = escapeshellarg($this->mysqldumpPath);
+        
+        $command = "{$cmdBinary} -h {$host} -u {$user}";
         if ($this->password !== '') {
             $password = escapeshellarg($this->password);
             $command .= " -p{$password}";
@@ -81,8 +103,9 @@ class DatabaseBackupService
         $user = escapeshellarg($this->user);
         $dbName = escapeshellarg($this->dbName);
         
-        // Build the command safely
-        $command = escapeshellcmd($this->mysqlPath) . " -h {$host} -u {$user}";
+        $cmdBinary = escapeshellarg($this->mysqlPath);
+        
+        $command = "{$cmdBinary} -h {$host} -u {$user}";
         if ($this->password !== '') {
             $password = escapeshellarg($this->password);
             $command .= " -p{$password}";
