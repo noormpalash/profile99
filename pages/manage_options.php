@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../classes/Auth.php';
 require_once __DIR__ . '/../classes/LookupManager.php';
 require_once __DIR__ . '/../classes/Personnel.php';
+require_once __DIR__ . '/../classes/AppSettings.php';
 Auth::requireAnyPermission(['manage_options', 'edit_manpower_state', 'bulk_import']);
 $withSidebar = true;
 
@@ -94,12 +95,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 Auth::requirePermission('edit_manpower_state');
                 $db = getDB();
                 $stmt = $db->prepare("UPDATE manpower_state SET auth = ?, posted = ?, att = ? WHERE category = ?");
-                foreach (['OFFR','SWO','WO','SGT','CPL','LCPL','SNK(GD)','NC(E)','NC(U)'] as $cat) {
+                foreach (['OFFR','SWO','WO','SGT','CPL','LCPL','SNK','NC(E)','NC(U)'] as $cat) {
                     $a = (int)($_POST['auth'][$cat] ?? 0);
                     $p = (int)($_POST['posted'][$cat] ?? 0);
                     $at = (int)($_POST['att'][$cat] ?? 0);
                     $stmt->execute([$a, $p, $at, $cat]);
                 }
+                $customKeys = $_POST['custom_absent_keys'] ?? [];
+                $customLabels = $_POST['custom_absent_labels'] ?? [];
+                $customStatuses = [];
+                if (is_array($customLabels)) {
+                    foreach ($customLabels as $idx => $cLabel) {
+                        $cLabel = trim((string)$cLabel);
+                        if ($cLabel !== '') {
+                            $cKey = trim((string)($customKeys[$idx] ?? ''));
+                            $customStatuses[] = [
+                                'key' => $cKey,
+                                'label' => $cLabel
+                            ];
+                        }
+                    }
+                }
+                AppSettings::setCustomAbsentStatuses($customStatuses);
                 header("Location: manage_options.php?table=$table");
                 exit;
             }
@@ -372,8 +389,36 @@ if (!$isBulkImport) {
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
+        <div class="row g-3 mb-3">
+          <div class="col-12 border-bottom pb-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <div>
+                <label class="form-label fw-bold mb-0">Custom Absent State Status Names</label>
+                <div class="form-text text-muted small mt-0">Add custom absent status names shown in Absent State table, personnel status dropdowns & profile.</div>
+              </div>
+              <button type="button" class="btn btn-sm btn-outline-primary" id="addCustomAbsentBtn">
+                <i class="ti ti-plus me-1"></i>Add Status Field
+              </button>
+            </div>
+            
+            <div id="customAbsentFieldsContainer" class="d-flex flex-column gap-2 mt-2">
+              <?php 
+              $customAbsentStatuses = AppSettings::getCustomAbsentStatuses();
+              foreach ($customAbsentStatuses as $cKey => $cLabel): 
+              ?>
+                <div class="input-group input-group-sm custom-absent-row" style="max-width: 460px;">
+                  <input type="hidden" name="custom_absent_keys[]" value="<?= htmlspecialchars($cKey) ?>">
+                  <input type="text" name="custom_absent_labels[]" class="form-control" value="<?= htmlspecialchars($cLabel) ?>" placeholder="e.g. Others, Detention, Hospitalized" required>
+                  <button type="button" class="btn btn-outline-danger remove-custom-absent-btn" title="Remove field">
+                    <i class="ti ti-trash"></i>
+                  </button>
+                </div>
+              <?php endforeach; ?>
+            </div>
+          </div>
+        </div>
         <div class="row g-3">
-          <?php foreach (['OFFR','SWO','WO','SGT','CPL','LCPL','SNK(GD)','NC(E)','NC(U)'] as $c): ?>
+          <?php foreach (['OFFR','SWO','WO','SGT','CPL','LCPL','SNK','NC(E)','NC(U)'] as $c): ?>
             <div class="col-md-3 col-6">
               <label class="form-label fw-bold mb-1"><?= htmlspecialchars($c) ?></label>
               <div class="input-group input-group-sm mb-1">
@@ -399,6 +444,43 @@ if (!$isBulkImport) {
     </form>
   </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const addBtn = document.getElementById('addCustomAbsentBtn');
+  const container = document.getElementById('customAbsentFieldsContainer');
+
+  if (addBtn && container) {
+    addBtn.addEventListener('click', function() {
+      const div = document.createElement('div');
+      div.className = 'input-group input-group-sm custom-absent-row';
+      div.style.maxWidth = '460px';
+      div.innerHTML = `
+        <input type="hidden" name="custom_absent_keys[]" value="">
+        <input type="text" name="custom_absent_labels[]" class="form-control" placeholder="e.g. Detention, ERE, Hospitalized" required>
+        <button type="button" class="btn btn-outline-danger remove-custom-absent-btn" title="Remove field">
+          <i class="ti ti-trash"></i>
+        </button>
+      `;
+      container.appendChild(div);
+      div.querySelector('input[type="text"]').focus();
+    });
+
+    container.addEventListener('click', function(e) {
+      const btn = e.target.closest('.remove-custom-absent-btn');
+      if (btn) {
+        const rows = container.querySelectorAll('.custom-absent-row');
+        if (rows.length > 1) {
+          btn.closest('.custom-absent-row').remove();
+        } else {
+          const input = btn.closest('.custom-absent-row').querySelector('input[type="text"]');
+          if (input) input.value = '';
+        }
+      }
+    });
+  }
+});
+</script>
 <?php endif; ?>
 
 <?php include __DIR__ . '/../includes/footer.php'; ?>

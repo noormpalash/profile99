@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../classes/Auth.php';
 require_once __DIR__ . '/../classes/Personnel.php';
 require_once __DIR__ . '/../classes/LookupManager.php';
+require_once __DIR__ . '/../classes/AppSettings.php';
 Auth::requirePermission('add_personnel');
 $withSidebar = true;
 
@@ -176,6 +177,7 @@ $appointments = LookupManager::getAll('appointments');
           <label class="form-label small">Status</label>
           <select name="status" class="form-select">
             <?php
+            $customAbsentStatuses = AppSettings::getCustomAbsentStatuses();
             $statusOptions = [
               'active' => 'Active',
               'on_leave' => 'On Leave',
@@ -186,8 +188,11 @@ $appointments = LookupManager::getAll('appointments');
               'goc_gd' => 'GOC GD',
               'suspend' => 'Suspend',
               'osl' => 'OSL',
-              'awol' => 'AWOL'
+              'awol' => 'AWOL',
             ];
+            foreach ($customAbsentStatuses as $cKey => $cLabel) {
+              $statusOptions[$cKey] = $cLabel;
+            }
             foreach ($statusOptions as $val => $label):
               ?>
               <option value="<?= $val ?>" <?= (isset($old['status']) ? $old['status'] : 'active') === $val ? 'selected' : '' ?>><?= htmlspecialchars($label) ?></option>

@@ -49,20 +49,6 @@
       });
 
       resetTimer();
-
-      // Tab close auto-logout using sessionStorage
-      <?php if (!empty($_SESSION['just_logged_in'])): ?>
-        sessionStorage.setItem('app_tab_active', '1');
-        <?php unset($_SESSION['just_logged_in']); ?>
-      <?php endif; ?>
-
-      if (!sessionStorage.getItem('app_tab_active')) {
-        window.location.href = '../pages/login.php?reason=tabclosed';
-      }
-
-      let isNav = false;
-      document.addEventListener('click', e => { if (e.target.closest('a') || e.target.closest('button')) isNav = true; });
-      document.addEventListener('submit', () => { isNav = true; });
     })();
   </script>
 <?php endif; ?>

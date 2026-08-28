@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../classes/Auth.php';
+require_once __DIR__ . '/../classes/AppSettings.php';
 require_once __DIR__ . '/../config/db.php';
 Auth::requireLogin();
 
@@ -11,16 +12,18 @@ if (!$status || !$category) {
     exit;
 }
 
+$customAbsentStatuses = AppSettings::getCustomAbsentStatuses();
+
 $rankMap = [
-  'OFFR' => ['Major', 'Colonel'],
-  'SWO' => ['Senior Warrant Officer'],
-  'WO' => ['Warrant Officer'],
-  'SGT' => ['Sergeant'],
-  'CPL' => ['Corporal'],
-  'LCPL' => ['Lance Corporal'],
-  'SNK(GD)' => ['Sainik'],
-  'NC(E)' => ['NC(E)'],
-  'NC(U)' => ['NC(U)']
+  'OFFR' => ['OFFR', 'Officer', 'Major', 'MAJ', 'Maj', 'Colonel', 'Col', 'COL', 'Captain', 'Capt', 'CAPT', 'Lieutenant', 'Lt', 'LT', '2Lt', '2LT', 'Second Lieutenant', 'Brigadier', 'Brig', 'Gen', 'General'],
+  'SWO' => ['SWO', 'Senior Warrant Officer'],
+  'WO' => ['WO', 'Warrant Officer'],
+  'SGT' => ['SGT', 'Sgt', 'Sergeant'],
+  'CPL' => ['CPL', 'Cpl', 'Corporal'],
+  'LCPL' => ['LCPL', 'Lcpl', 'Lance Corporal'],
+  'SNK' => ['SNK', 'SNK(GD)', 'Snk', 'Sainik', 'Soldier', 'SNK (GD)'],
+  'NC(E)' => ['NC(E)', 'NCE', 'NC (E)'],
+  'NC(U)' => ['NC(U)', 'NCU', 'NC (U)']
 ];
 
 if ($category === 'ALL') {
@@ -45,7 +48,7 @@ $leaveMap = [
   'C/Leave' => 'Casual Leave',
   'W/Leave' => 'Weekend Leave',
   'R/Leave' => 'Recreation Leave',
-  'M/Leave' => 'Medical Leave',
+  'Medical Leave' => 'M/Leave',
 ];
 
 $statusMap = [
@@ -56,8 +59,18 @@ $statusMap = [
   'GOC GD' => 'goc_gd',
   'Suspend' => 'suspend',
   'OSL' => 'osl',
-  'AWOL' => 'awol'
+  'AWOL' => 'awol',
+  'Others' => 'others',
+  'others' => 'others',
 ];
+foreach ($customAbsentStatuses as $cKey => $cLabel) {
+  $statusMap[$cLabel] = $cKey;
+  $statusMap[$cKey] = $cKey;
+}
+
+$baseAbsentKeys = ['cmh', 'trg', 'cmd', 'att', 'goc_gd', 'suspend', 'osl', 'awol', 'others'];
+$allAbsentStatusKeys = array_unique(array_merge($baseAbsentKeys, array_keys($customAbsentStatuses)));
+$allAbsentPlaceholders = "'" . implode("','", array_map('addslashes', $allAbsentStatusKeys)) . "'";
 
 $results = [];
 
@@ -91,7 +104,7 @@ if ($status === 'ALL' || isset($statusMap[$status])) {
         $sql .= " AND p.status = ? ORDER BY p.name ASC";
         $params = array_merge($ranks, [$statusMap[$status]]);
     } else {
-        $sql .= " AND p.status IN ('cmh', 'trg', 'cmd', 'att', 'goc_gd', 'suspend', 'osl', 'awol') ORDER BY p.name ASC";
+        $sql .= " AND p.status IN ($allAbsentPlaceholders) ORDER BY p.name ASC";
         $params = $ranks;
     }
     

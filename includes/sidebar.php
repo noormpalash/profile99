@@ -21,6 +21,11 @@
           <i class="ti ti-users me-2"></i>Personnel
         </a>
         <?php endif; ?>
+        <?php if (Auth::hasPermission('leave_seniority')): ?>
+        <a href="leave_seniority.php" class="list-group-item list-group-item-action <?= $current==='leave_seniority.php'?'active':'' ?>">
+          <i class="ti ti-calendar-stats me-2"></i>Leave Seniority
+        </a>
+        <?php endif; ?>
 
         <?php if (Auth::hasPermission('approval') || in_array(Auth::role(), ['admin', 'superadmin', 'techadmin'])): 
             $pendingCount = getDB()->query("SELECT COUNT(*) FROM personnel_approvals WHERE status='pending'")->fetchColumn();

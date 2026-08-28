@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../classes/Auth.php';
 require_once __DIR__ . '/../classes/Personnel.php';
+require_once __DIR__ . '/../classes/AppSettings.php';
 require_once __DIR__ . '/../config/db.php';
 Auth::requireLogin();
 
@@ -57,6 +58,27 @@ if (in_array($rankLower, ['sainik', 'lance corporal', 'corporal', 'sergeant', 'w
 $icons = ['facebook'=>'ti ti-brand-facebook','linkedin'=>'ti ti-brand-linkedin','whatsapp'=>'ti ti-brand-whatsapp','twitter'=>'ti ti-brand-x'];
 $display = static fn($value, string $fallback = '-') => ($value !== null && trim((string)$value) !== '') ? htmlspecialchars((string)$value) : $fallback;
 $displayDate = static fn($value, string $fallback = '-') => ($value !== null && trim((string)$value) !== '' && $value !== '0000-00-00') ? date('d/m/y', strtotime((string)$value)) : $fallback;
+$customAbsentStatuses = AppSettings::getCustomAbsentStatuses();
+
+$statusLabelMap = [
+    'active' => 'Active',
+    'on_leave' => 'On Leave',
+    'cmh' => 'CMH',
+    'trg' => 'TRG',
+    'cmd' => 'CMD',
+    'att' => 'ATT',
+    'goc_gd' => 'GOC GD',
+    'suspend' => 'Suspend',
+    'osl' => 'OSL',
+    'awol' => 'AWOL',
+];
+foreach ($customAbsentStatuses as $cKey => $cLabel) {
+    $statusLabelMap[$cKey] = $cLabel;
+}
+if (!isset($statusLabelMap['others'])) {
+    $statusLabelMap['others'] = reset($customAbsentStatuses) ?: 'Others';
+}
+
 if (!empty($person['current_leave_type'])) {
     $person['status'] = 'on_leave';
     $lt = $person['current_leave_type'];
@@ -66,7 +88,12 @@ if (!empty($person['current_leave_type'])) {
     $person['status'] = 'active';
     $statusLabel = 'Active';
 } else {
-    $statusLabel = ucwords(str_replace('_', ' ', (string)($person['status'] ?? 'unknown')));
+    $statusRawLower = strtolower(trim((string)($person['status'] ?? '')));
+    if (isset($statusLabelMap[$statusRawLower])) {
+        $statusLabel = $statusLabelMap[$statusRawLower];
+    } else {
+        $statusLabel = ucwords(str_replace('_', ' ', (string)($person['status'] ?? 'unknown')));
+    }
 }
 
 // Status color class mapping
@@ -78,6 +105,10 @@ if (in_array($statusRaw, ['inactive', 'retired', 'dismissed'], true)) {
     $statusTagClass = 'status-tag-leave';
 } elseif (in_array($statusRaw, ['mission', 'un_mission'], true)) {
     $statusTagClass = 'status-tag-mission';
+} elseif (isset($customAbsentStatuses[$statusRaw]) || $statusRaw === 'others') {
+    $statusTagClass = 'status-tag-others';
+} elseif (in_array($statusRaw, ['cmh', 'trg', 'cmd', 'att', 'goc_gd', 'suspend', 'osl', 'awol'], true)) {
+    $statusTagClass = 'status-tag-absent';
 }
 
 $canEdit = Auth::hasAnyPermission([
@@ -261,6 +292,20 @@ $canEdit = Auth::hasAnyPermission([
     color: #67e8f9;
     border-color: rgba(34, 211, 238, 0.4);
     box-shadow: 0 0 12px rgba(34, 211, 238, 0.25);
+  }
+
+  .profile-page .hero-tag.status-tag-others {
+    background: rgba(168, 85, 247, 0.25);
+    color: #d8b4fe;
+    border-color: rgba(192, 132, 252, 0.4);
+    box-shadow: 0 0 12px rgba(168, 85, 247, 0.25);
+  }
+
+  .profile-page .hero-tag.status-tag-absent {
+    background: rgba(249, 115, 22, 0.25);
+    color: #fdba74;
+    border-color: rgba(251, 146, 60, 0.4);
+    box-shadow: 0 0 12px rgba(249, 115, 22, 0.25);
   }
 
   /* ── Glowing Appointment Tag ── */

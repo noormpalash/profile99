@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../classes/Auth.php';
 require_once __DIR__ . '/../classes/Personnel.php';
 require_once __DIR__ . '/../classes/LookupManager.php';
+require_once __DIR__ . '/../classes/AppSettings.php';
 require_once __DIR__ . '/../config/db.php';
 Auth::requirePermission('view_dashboard');
 $withSidebar = true;
@@ -21,15 +22,15 @@ foreach ($activeRanks as $r) {
   $activeRankCounts[$r['name']] = $r['cnt'];
 }
 $rankMap = [
-  'OFFR' => ['Major', 'Colonel'],
-  'SWO' => ['Senior Warrant Officer'],
-  'WO' => ['Warrant Officer'],
-  'SGT' => ['Sergeant'],
-  'CPL' => ['Corporal'],
-  'LCPL' => ['Lance Corporal'],
-  'SNK(GD)' => ['Sainik'],
-  'NC(E)' => ['NC(E)'],
-  'NC(U)' => ['NC(U)']
+  'OFFR' => ['OFFR', 'Officer', 'Major', 'MAJ', 'Maj', 'Colonel', 'Col', 'COL', 'Captain', 'Capt', 'CAPT', 'Lieutenant', 'Lt', 'LT', '2Lt', '2LT', 'Second Lieutenant', 'Brigadier', 'Brig', 'Gen', 'General'],
+  'SWO' => ['SWO', 'Senior Warrant Officer'],
+  'WO' => ['WO', 'Warrant Officer'],
+  'SGT' => ['SGT', 'Sgt', 'Sergeant'],
+  'CPL' => ['CPL', 'Cpl', 'Corporal'],
+  'LCPL' => ['LCPL', 'Lcpl', 'Lance Corporal'],
+  'SNK' => ['SNK', 'SNK(GD)', 'Snk', 'Sainik', 'Soldier', 'SNK (GD)'],
+  'NC(E)' => ['NC(E)', 'NCE', 'NC (E)'],
+  'NC(U)' => ['NC(U)', 'NCU', 'NC (U)']
 ];
 foreach ($rankMap as $cat => $ranks) {
   if (!isset($mpState[$cat]))
@@ -39,7 +40,7 @@ foreach ($rankMap as $cat => $ranks) {
     $present += ($activeRankCounts[$r] ?? 0);
   }
   $mpState[$cat]['present'] = $present;
-  $mpState[$cat]['absent'] = $mpState[$cat]['posted'] - $present;
+  $mpState[$cat]['absent'] = max(0, (int)$mpState[$cat]['posted'] - $present);
 }
 $totalPersonnel = (int) $db->query("SELECT COUNT(*) FROM personnel")->fetchColumn();
 $activeCount = (int) $db->query("SELECT COUNT(*) FROM personnel p WHERE p.status = 'active' AND NOT EXISTS (SELECT 1 FROM personnel_leaves pl WHERE pl.personnel_id = p.id AND CURRENT_DATE >= pl.from_date AND CURRENT_DATE <= pl.to_date)")->fetchColumn();
@@ -102,7 +103,11 @@ foreach ($personnelRanks as $p) {
 
 
 // ── Absent State Data ──
-$absentRows = ['Pre Leave', 'C/Leave', 'W/Leave', 'R/Leave', 'M/Leave', 'CMH', 'TRG', 'CMD', 'ATT', 'GOC GD', 'Suspend', 'OSL', 'AWOL'];
+$customAbsentStatuses = AppSettings::getCustomAbsentStatuses();
+$customLabels = array_values($customAbsentStatuses);
+
+$baseAbsentRows = ['Pre Leave', 'C/Leave', 'W/Leave', 'R/Leave', 'M/Leave', 'CMH', 'TRG', 'CMD', 'ATT', 'GOC GD', 'Suspend', 'OSL', 'AWOL'];
+$absentRows = array_merge($baseAbsentRows, $customLabels);
 $absentStateData = [];
 foreach ($absentRows as $ar) {
   $absentStateData[$ar] = array_fill_keys(array_keys($rankMap), 0);
@@ -127,7 +132,30 @@ foreach ($leaveCounts as $lc) {
     $absentStateData[$leaveMap[$lc['leave_type']]][$catFound] += (int) $lc['cnt'];
   }
 }
-$statusCounts = $db->query("SELECT r.name as rank_name, p.status, COUNT(DISTINCT p.id) as cnt FROM personnel p JOIN ranks r ON p.rank_id = r.id WHERE p.status IN ('cmh', 'trg', 'cmd', 'att', 'goc_gd', 'suspend', 'osl', 'awol') GROUP BY r.name, p.status")->fetchAll();
+
+$baseStatusKeys = ['cmh', 'trg', 'cmd', 'att', 'goc_gd', 'suspend', 'osl', 'awol', 'others'];
+$allAbsentStatusKeys = array_unique(array_merge($baseStatusKeys, array_keys($customAbsentStatuses)));
+$inPlaceholders = "'" . implode("','", array_map('addslashes', $allAbsentStatusKeys)) . "'";
+
+$statusCounts = $db->query("SELECT r.name as rank_name, p.status, COUNT(DISTINCT p.id) as cnt FROM personnel p JOIN ranks r ON p.rank_id = r.id WHERE p.status IN ($inPlaceholders) GROUP BY r.name, p.status")->fetchAll();
+
+$mapStatus = [
+  'cmh' => 'CMH',
+  'trg' => 'TRG',
+  'cmd' => 'CMD',
+  'att' => 'ATT',
+  'goc_gd' => 'GOC GD',
+  'suspend' => 'Suspend',
+  'osl' => 'OSL',
+  'awol' => 'AWOL',
+];
+foreach ($customAbsentStatuses as $cKey => $cLabel) {
+  $mapStatus[$cKey] = $cLabel;
+}
+if (!isset($mapStatus['others'])) {
+  $mapStatus['others'] = reset($customAbsentStatuses) ?: 'Others';
+}
+
 foreach ($statusCounts as $sc) {
   $catFound = null;
   foreach ($rankMap as $cat => $ranks) {
@@ -136,20 +164,8 @@ foreach ($statusCounts as $sc) {
       break;
     }
   }
-  if ($catFound) {
-    $mapStatus = [
-      'cmh' => 'CMH',
-      'trg' => 'TRG',
-      'cmd' => 'CMD',
-      'att' => 'ATT',
-      'goc_gd' => 'GOC GD',
-      'suspend' => 'Suspend',
-      'osl' => 'OSL',
-      'awol' => 'AWOL'
-    ];
-    if (isset($mapStatus[$sc['status']])) {
-      $absentStateData[$mapStatus[$sc['status']]][$catFound] += (int) $sc['cnt'];
-    }
+  if ($catFound && isset($mapStatus[$sc['status']]) && isset($absentStateData[$mapStatus[$sc['status']]])) {
+    $absentStateData[$mapStatus[$sc['status']]][$catFound] += (int) $sc['cnt'];
   }
 }
 
@@ -224,6 +240,11 @@ $allOnLeave = $db->query("SELECT p.id, p.name, p.personal_number, p.photo_path, 
     box-shadow: 0 12px 24px -4px rgba(0, 0, 0, 0.15), 0 4px 12px -2px rgba(0, 0, 0, 0.1);
   }
 
+  .stat-card:hover .stat-icon {
+    opacity: 0.35;
+    transform: translateY(-50%) scale(1.08);
+  }
+
   .stat-card .stat-value {
     font-size: 2rem;
     font-weight: 800;
@@ -231,6 +252,8 @@ $allOnLeave = $db->query("SELECT p.id, p.name, p.personal_number, p.photo_path, 
     line-height: 1.1;
     margin-bottom: 6px;
     letter-spacing: -0.02em;
+    position: relative;
+    z-index: 2;
   }
 
   .stat-card .stat-label {
@@ -243,6 +266,21 @@ $allOnLeave = $db->query("SELECT p.id, p.name, p.personal_number, p.photo_path, 
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    position: relative;
+    z-index: 2;
+  }
+
+  .stat-card .stat-icon {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 3rem;
+    opacity: 0.2;
+    color: #ffffff;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+    z-index: 1;
   }
 
   /* ── Chart Cards ── */
@@ -589,32 +627,37 @@ $allOnLeave = $db->query("SELECT p.id, p.name, p.personal_number, p.photo_path, 
     <div class="row g-3 mb-4 row-cols-2 row-cols-md-3 row-cols-xl-5">
       <div class="col">
         <div class="stat-card sc-total animate-in delay-1">
-          <div class="stat-value"><?= $totalPersonnel ?></div>
-          <div class="stat-label" title="Total Personnel">Total Personnel</div>
+          <div class="stat-value"><?= sprintf('%02d', $totalPersonnel) ?></div>
+          <div class="stat-label" title="Total Personnel">TOTAL PERSONNEL</div>
+          <i class="ti ti-users stat-icon"></i>
         </div>
       </div>
       <div class="col">
         <div class="stat-card sc-active animate-in delay-2">
-          <div class="stat-value"><?= $activeCount ?></div>
-          <div class="stat-label" title="Active">Active</div>
+          <div class="stat-value"><?= sprintf('%02d', $activeCount) ?></div>
+          <div class="stat-label" title="Active">ACTIVE</div>
+          <i class="ti ti-user-check stat-icon"></i>
         </div>
       </div>
       <div class="col">
         <div class="stat-card sc-leave animate-in delay-3">
-          <div class="stat-value"><?= $onLeaveCount ?></div>
-          <div class="stat-label" title="On leave">On leave</div>
+          <div class="stat-value"><?= sprintf('%02d', $onLeaveCount) ?></div>
+          <div class="stat-label" title="On leave">ON LEAVE</div>
+          <i class="ti ti-calendar-off stat-icon"></i>
         </div>
       </div>
       <div class="col">
         <div class="stat-card sc-family animate-in delay-4">
-          <div class="stat-value"><?= $familyMembers ?></div>
+          <div class="stat-value"><?= sprintf('%02d', $familyMembers) ?></div>
           <div class="stat-label" title="FAMILY MEMBER">FAMILY MEMBER</div>
+          <i class="ti ti-friends stat-icon"></i>
         </div>
       </div>
       <div class="col">
         <div class="stat-card sc-moq-no animate-in delay-5">
-          <div class="stat-value"><?= $moqNotQualifiedCount ?></div>
+          <div class="stat-value"><?= sprintf('%02d', $moqNotQualifiedCount) ?></div>
           <div class="stat-label" title="MOQ NOT QUAL">MOQ NOT QUAL</div>
+          <i class="ti ti-alert-triangle stat-icon"></i>
         </div>
       </div>
     </div>
@@ -638,7 +681,7 @@ $allOnLeave = $db->query("SELECT p.id, p.name, p.personal_number, p.photo_path, 
                   <thead>
                     <tr>
                       <th style="width: 140px;">Details</th>
-                      <?php foreach (['OFFR', 'SWO', 'WO', 'SGT', 'CPL', 'LCPL', 'SNK(GD)', 'NC(E)', 'NC(U)'] as $c): ?>
+                      <?php foreach (['OFFR', 'SWO', 'WO', 'SGT', 'CPL', 'LCPL', 'SNK', 'NC(E)', 'NC(U)'] as $c): ?>
                         <th><?= htmlspecialchars($c) ?></th>
                       <?php endforeach; ?>
                       <th>TOTAL</th>
@@ -649,7 +692,7 @@ $allOnLeave = $db->query("SELECT p.id, p.name, p.personal_number, p.photo_path, 
                       <tr class="row-<?= $key ?>">
                         <td><?= $label ?></td>
                         <?php $total = 0; ?>
-                        <?php foreach (['OFFR', 'SWO', 'WO', 'SGT', 'CPL', 'LCPL', 'SNK(GD)', 'NC(E)', 'NC(U)'] as $c): ?>
+                        <?php foreach (['OFFR', 'SWO', 'WO', 'SGT', 'CPL', 'LCPL', 'SNK', 'NC(E)', 'NC(U)'] as $c): ?>
                           <?php $val = $mpState[$c][$key] ?? 0;
                           $total += $val; ?>
                           <td>
@@ -703,20 +746,20 @@ $allOnLeave = $db->query("SELECT p.id, p.name, p.personal_number, p.photo_path, 
                   <thead>
                     <tr>
                       <th style="width: 140px;">Details</th>
-                      <?php foreach (['OFFR', 'SWO', 'WO', 'SGT', 'CPL', 'LCPL', 'SNK(GD)', 'NC(E)', 'NC(U)'] as $c): ?>
+                      <?php foreach (['OFFR', 'SWO', 'WO', 'SGT', 'CPL', 'LCPL', 'SNK', 'NC(E)', 'NC(U)'] as $c): ?>
                         <th><?= htmlspecialchars($c) ?></th>
                       <?php endforeach; ?>
                       <th>TOTAL</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <?php $colTotals = array_fill_keys(['OFFR', 'SWO', 'WO', 'SGT', 'CPL', 'LCPL', 'SNK(GD)', 'NC(E)', 'NC(U)'], 0);
+                    <?php $colTotals = array_fill_keys(['OFFR', 'SWO', 'WO', 'SGT', 'CPL', 'LCPL', 'SNK', 'NC(E)', 'NC(U)'], 0);
                     $grandTotal = 0; ?>
                     <?php foreach ($absentRows as $rowLabel): ?>
                       <tr>
                         <td><?= htmlspecialchars($rowLabel) ?></td>
                         <?php $rowTotal = 0; ?>
-                        <?php foreach (['OFFR', 'SWO', 'WO', 'SGT', 'CPL', 'LCPL', 'SNK(GD)', 'NC(E)', 'NC(U)'] as $c): ?>
+                        <?php foreach (['OFFR', 'SWO', 'WO', 'SGT', 'CPL', 'LCPL', 'SNK', 'NC(E)', 'NC(U)'] as $c): ?>
                           <?php $val = $absentStateData[$rowLabel][$c] ?? 0;
                           $rowTotal += $val;
                           $colTotals[$c] += $val; ?>
@@ -746,7 +789,7 @@ $allOnLeave = $db->query("SELECT p.id, p.name, p.personal_number, p.photo_path, 
                     <?php endforeach; ?>
                     <tr class="total-row">
                       <td>Total</td>
-                      <?php foreach (['OFFR', 'SWO', 'WO', 'SGT', 'CPL', 'LCPL', 'SNK(GD)', 'NC(E)', 'NC(U)'] as $c): ?>
+                      <?php foreach (['OFFR', 'SWO', 'WO', 'SGT', 'CPL', 'LCPL', 'SNK', 'NC(E)', 'NC(U)'] as $c): ?>
                         <td class="fw-bold">
                           <?php if ($colTotals[$c] > 0): ?>
                             <a href="#" class="absent-link text-decoration-none text-dark" data-status="ALL"
@@ -804,9 +847,14 @@ $allOnLeave = $db->query("SELECT p.id, p.name, p.personal_number, p.photo_path, 
         <div class="chart-card animate-in delay-6" style="border: none; box-shadow: none; background: transparent; padding: 0;">
           <div class="chart-card-header d-flex align-items-center justify-content-between px-1 pb-3 pt-0">
             <h6 style="font-size:1.1rem; letter-spacing:-0.02em;"><i class="ti ti-calendar-off me-2" style="color:#f59e0b"></i>Currently On Leave</h6>
-            <?php if (Auth::hasPermission('print_records')): ?>
-            <button type="button" class="btn-print no-print" onclick="printSection('onLeaveSection', 'Currently On Leave')"><i class="ti ti-printer"></i> Print</button>
-            <?php endif; ?>
+            <div class="d-flex align-items-center gap-2">
+              <?php if (Auth::hasPermission('leave_seniority')): ?>
+              <a href="leave_seniority.php" class="btn-print no-print text-decoration-none"><i class="ti ti-calendar-stats"></i> Leave Seniority</a>
+              <?php endif; ?>
+              <?php if (Auth::hasPermission('print_records')): ?>
+              <button type="button" class="btn-print no-print" onclick="printSection('onLeaveSection', 'Currently On Leave')"><i class="ti ti-printer"></i> Print</button>
+              <?php endif; ?>
+            </div>
           </div>
           <div class="table-responsive no-print" style="background: #fff; border-radius: 12px; border: 1px solid #eee; overflow: hidden;">
             <table class="table table-hover mb-0">
@@ -907,9 +955,6 @@ $allOnLeave = $db->query("SELECT p.id, p.name, p.personal_number, p.photo_path, 
       }
     }
   };
-
-
-
 
   document.addEventListener('click', function (e) {
     const link = e.target.closest('.absent-link');

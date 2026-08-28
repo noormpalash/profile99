@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../classes/Auth.php';
 require_once __DIR__ . '/../classes/Personnel.php';
 require_once __DIR__ . '/../classes/LookupManager.php';
+require_once __DIR__ . '/../classes/AppSettings.php';
 require_once __DIR__ . '/../config/db.php';
 Auth::requirePermission('view_personnel');
 $withSidebar = true;
@@ -125,6 +126,7 @@ $districts = bangladeshDistricts();
                 <select name="status" class="form-select">
                   <option value="">All statuses</option>
                   <?php
+                  $customAbsentStatuses = AppSettings::getCustomAbsentStatuses();
                   $statusOptions = [
                     'active' => 'Active',
                     'on_leave' => 'On Leave (Any)',
@@ -140,8 +142,11 @@ $districts = bangladeshDistricts();
                     'goc_gd' => 'GOC GD',
                     'suspend' => 'Suspend',
                     'osl' => 'OSL',
-                    'awol' => 'AWOL'
+                    'awol' => 'AWOL',
                   ];
+                  foreach ($customAbsentStatuses as $cKey => $cLabel) {
+                    $statusOptions[$cKey] = $cLabel;
+                  }
                   foreach ($statusOptions as $val => $label): ?>
                     <option value="<?= $val ?>" <?= $filters['status'] === $val ? 'selected' : '' ?>>
                       <?= htmlspecialchars($label) ?></option>
@@ -328,15 +333,15 @@ $districts = bangladeshDistricts();
         <tbody id="printPersonnelTbody">
           <?php
           $rankWeights = [
-            'Major' => 1,
-            'Captain' => 2,
-            'Lieutenant' => 3,
-            'Senior Warrant Officer' => 4,
-            'Warrant Officer' => 5,
-            'Sergeant' => 6,
-            'Corporal' => 7,
-            'Lance Corporal' => 8,
-            'Sainik' => 9,
+            'Major' => 1, 'MAJ' => 1, 'Maj' => 1,
+            'Captain' => 2, 'CAPT' => 2, 'Capt' => 2,
+            'Lieutenant' => 3, 'LT' => 3, 'Lt' => 3,
+            'Senior Warrant Officer' => 4, 'SWO' => 4,
+            'Warrant Officer' => 5, 'WO' => 5,
+            'Sergeant' => 6, 'SGT' => 6, 'Sgt' => 6,
+            'Corporal' => 7, 'CPL' => 7, 'Cpl' => 7,
+            'Lance Corporal' => 8, 'LCPL' => 8, 'Lcpl' => 8,
+            'Sainik' => 9, 'SNK' => 9, 'SNK(GD)' => 9, 'Snk' => 9,
             'CK' => 10,
             'NC(E)' => 11,
             'NC(U)' => 12,
@@ -469,7 +474,10 @@ $districts = bangladeshDistricts();
       '<input id="printSubHeading" class="swal2-input" placeholder="Sub-heading (optional)" style="max-width: 90%; margin: 10px auto;">' +
       '<div style="text-align:left; width: 90%; margin: 10px auto 0; font-size:14px;">Date (optional):</div>' +
       '<input type="date" id="printDate" class="swal2-input" style="max-width: 90%; margin: 5px auto 10px;">' +
-      '<div style="text-align:left; width: 90%; margin: 10px auto 0; font-size:14px;"><label><input type="checkbox" id="maintainSeniorityByPNo" class="form-check-input me-1"> Maintain Army Seniority by Personal No</label></div>' +
+      '<div class="form-check form-switch text-start" style="max-width: 90%; margin: 10px auto 10px;">' +
+        '<input class="form-check-input" type="checkbox" id="maintainSeniorityByPNo">' +
+        '<label class="form-check-label small text-dark ms-1" for="maintainSeniorityByPNo">Maintain Army Seniority by Personal No</label>' +
+      '</div>' +
       '<div style="text-align:left; width: 90%; margin: 10px auto 0; font-size:14px;">Page Size:</div>' +
       '<select id="printPageSize" class="swal2-select" style="max-width: 90%; margin: 5px auto 10px;"><option value="A4">A4</option><option value="Legal">Legal</option><option value="Letter">Letter</option></select>';
   }
@@ -484,19 +492,42 @@ $districts = bangladeshDistricts();
     };
   }
 
-
   function printWithInfo() {
     const infoFieldsHtml =
-      '<div style="text-align:left; width: 90%; margin: 15px auto 5px; font-size:14px; font-weight:600; border-bottom:1px solid #e5e7eb; padding-bottom:6px;">Select columns to include:</div>' +
-      '<div style="display:grid; grid-template-columns:1fr 1fr; gap:4px 16px; width:90%; margin:8px auto; text-align:left; font-size:14px;">' +
-      '<label><input type="checkbox" class="form-check-input me-1 info-field-cb" value="blood_group"> Blood Group</label>' +
-      '<label><input type="checkbox" class="form-check-input me-1 info-field-cb" value="district"> District</label>' +
-      '<label><input type="checkbox" class="form-check-input me-1 info-field-cb" value="phone"> Phone Number</label>' +
-      '<label><input type="checkbox" class="form-check-input me-1 info-field-cb" value="appointment"> Appointment</label>' +
-      '<label><input type="checkbox" class="form-check-input me-1 info-field-cb" value="unit"> Unit</label>' +
-      '<label><input type="checkbox" class="form-check-input me-1 info-field-cb" value="cadre"> Cadre</label>' +
-      '<label><input type="checkbox" class="form-check-input me-1 info-field-cb" value="platoon"> Platoon</label>' +
-      '<label><input type="checkbox" class="form-check-input me-1 info-field-cb" value="nid"> NID</label>' +
+      '<div style="text-align:left; width: 90%; margin: 15px auto 8px; font-size:14px; font-weight:600; border-bottom:1px solid #e5e7eb; padding-bottom:6px;">Select columns to include:</div>' +
+      '<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px 16px; width:90%; margin:8px auto; text-align:left; font-size:14px;">' +
+        '<div class="form-check form-switch mb-0">' +
+          '<input class="form-check-input info-field-cb" type="checkbox" id="col_blood_group" value="blood_group">' +
+          '<label class="form-check-label small text-dark ms-1" for="col_blood_group">Blood Group</label>' +
+        '</div>' +
+        '<div class="form-check form-switch mb-0">' +
+          '<input class="form-check-input info-field-cb" type="checkbox" id="col_district" value="district">' +
+          '<label class="form-check-label small text-dark ms-1" for="col_district">District</label>' +
+        '</div>' +
+        '<div class="form-check form-switch mb-0">' +
+          '<input class="form-check-input info-field-cb" type="checkbox" id="col_phone" value="phone">' +
+          '<label class="form-check-label small text-dark ms-1" for="col_phone">Phone Number</label>' +
+        '</div>' +
+        '<div class="form-check form-switch mb-0">' +
+          '<input class="form-check-input info-field-cb" type="checkbox" id="col_appointment" value="appointment">' +
+          '<label class="form-check-label small text-dark ms-1" for="col_appointment">Appointment</label>' +
+        '</div>' +
+        '<div class="form-check form-switch mb-0">' +
+          '<input class="form-check-input info-field-cb" type="checkbox" id="col_unit" value="unit">' +
+          '<label class="form-check-label small text-dark ms-1" for="col_unit">Unit</label>' +
+        '</div>' +
+        '<div class="form-check form-switch mb-0">' +
+          '<input class="form-check-input info-field-cb" type="checkbox" id="col_cadre" value="cadre">' +
+          '<label class="form-check-label small text-dark ms-1" for="col_cadre">Cadre</label>' +
+        '</div>' +
+        '<div class="form-check form-switch mb-0">' +
+          '<input class="form-check-input info-field-cb" type="checkbox" id="col_platoon" value="platoon">' +
+          '<label class="form-check-label small text-dark ms-1" for="col_platoon">Platoon</label>' +
+        '</div>' +
+        '<div class="form-check form-switch mb-0">' +
+          '<input class="form-check-input info-field-cb" type="checkbox" id="col_nid" value="nid">' +
+          '<label class="form-check-label small text-dark ms-1" for="col_nid">NID</label>' +
+        '</div>' +
       '</div>';
 
     Swal.fire({

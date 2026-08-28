@@ -184,6 +184,11 @@ class Auth
         return $_SESSION['role'] ?? null;
     }
 
+    public static function hasRole(string ...$roles): bool
+    {
+        return in_array(self::role(), $roles, true);
+    }
+
     // Call at the top of any page that requires login
     public static function requireLogin(): void
     {

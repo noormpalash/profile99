@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../classes/Auth.php';
 require_once __DIR__ . '/../classes/Personnel.php';
 require_once __DIR__ . '/../classes/LookupManager.php';
+require_once __DIR__ . '/../classes/AppSettings.php';
 require_once __DIR__ . '/../config/db.php';
 Auth::requireAnyPermission([
   'edit_personnel_basic',
@@ -189,21 +190,27 @@ foreach ($socialLinks as $link) {
         <div class="row mb-3">
           <div class="col-md-3">
             <label class="form-label small">Status</label>
+            <?php
+            $customAbsentStatuses = AppSettings::getCustomAbsentStatuses();
+            $statusOptions = [
+              'active' => 'Active',
+              'on_leave' => 'On Leave',
+              'cmh' => 'CMH',
+              'trg' => 'TRG',
+              'cmd' => 'CMD',
+              'att' => 'ATT',
+              'goc_gd' => 'GOC GD',
+              'suspend' => 'Suspend',
+              'osl' => 'OSL',
+              'awol' => 'AWOL',
+            ];
+            foreach ($customAbsentStatuses as $cKey => $cLabel) {
+              $statusOptions[$cKey] = $cLabel;
+            }
+            ?>
             <?php if (Auth::hasPermission('edit_personnel_status')): ?>
               <select name="status" class="form-select">
                 <?php
-                $statusOptions = [
-                  'active' => 'Active',
-                  'on_leave' => 'On Leave',
-                  'cmh' => 'CMH',
-                  'trg' => 'TRG',
-                  'cmd' => 'CMD',
-                  'att' => 'ATT',
-                  'goc_gd' => 'GOC GD',
-                  'suspend' => 'Suspend',
-                  'osl' => 'OSL',
-                  'awol' => 'AWOL'
-                ];
                 foreach ($statusOptions as $val => $label):
                   ?>
                   <option value="<?= $val ?>" <?= $person['status'] === $val ? 'selected' : '' ?>><?= htmlspecialchars($label) ?>
@@ -212,7 +219,7 @@ foreach ($socialLinks as $link) {
               </select>
             <?php else: ?>
               <input type="text" class="form-control"
-                value="<?= htmlspecialchars(ucwords(str_replace('_', ' ', $person['status'] ?? ''))) ?>" readonly>
+                value="<?= htmlspecialchars($statusOptions[$person['status']] ?? ucwords(str_replace('_', ' ', $person['status'] ?? ''))) ?>" readonly>
               <input type="hidden" name="status" value="<?= htmlspecialchars($person['status'] ?? '') ?>">
             <?php endif; ?>
           </div>

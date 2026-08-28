@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../classes/Auth.php';
 require_once __DIR__ . '/../classes/Personnel.php';
 require_once __DIR__ . '/../classes/LookupManager.php';
+require_once __DIR__ . '/../classes/AppSettings.php';
 require_once __DIR__ . '/../config/db.php';
 Auth::requireLogin();
 $withSidebar = true;
@@ -150,6 +151,7 @@ $districts = bangladeshDistricts();
                   <select name="status" class="form-select">
                     <option value="">All statuses</option>
                     <?php 
+                    $customAbsentStatuses = AppSettings::getCustomAbsentStatuses();
                     $statusOptions = [
                         'active' => 'Active', 
                         'on_leave' => 'On Leave (Any)', 
@@ -158,8 +160,11 @@ $districts = bangladeshDistricts();
                         'leave_weekend' => 'On Leave (Weekend)', 
                         'leave_medical' => 'On Leave (Medical)', 
                         'leave_recreation' => 'On Leave (Recreation)', 
-                        'cmh' => 'CMH', 'trg' => 'TRG', 'cmd' => 'CMD', 'att' => 'ATT', 'goc_gd' => 'GOC GD', 'suspend' => 'Suspend', 'osl' => 'OSL', 'awol' => 'AWOL'
+                        'cmh' => 'CMH', 'trg' => 'TRG', 'cmd' => 'CMD', 'att' => 'ATT', 'goc_gd' => 'GOC GD', 'suspend' => 'Suspend', 'osl' => 'OSL', 'awol' => 'AWOL',
                     ];
+                    foreach ($customAbsentStatuses as $cKey => $cLabel) {
+                        $statusOptions[$cKey] = $cLabel;
+                    }
                     foreach ($statusOptions as $val => $label): ?>
                       <option value="<?= $val ?>" <?= $filters['status'] === $val ? 'selected' : '' ?>>
                         <?= htmlspecialchars($label) ?></option>
