@@ -5,118 +5,176 @@ require_once __DIR__ . '/../config/db.php';
 
 class DatabaseBackupService
 {
-    private string $host;
-    private string $dbName;
-    private string $user;
-    private string $password;
-    
-    private string $mysqldumpPath;
-    private string $mysqlPath;
+    private PDO $pdo;
 
     public function __construct()
     {
-        $this->host = DB_HOST;
-        $this->dbName = DB_NAME;
-        $this->user = DB_USER;
-        $this->password = DB_PASS;
-        
-        $possibleMysqldumpPaths = [
-            'C:\\xampp\\mysql\\bin\\mysqldump.exe', // Windows XAMPP
-            '/Applications/XAMPP/xamppfiles/bin/mysqldump', // Mac XAMPP
-            '/opt/lampp/bin/mysqldump', // Linux XAMPP
-        ];
-        
-        $possibleMysqlPaths = [
-            'C:\\xampp\\mysql\\bin\\mysql.exe',
-            '/Applications/XAMPP/xamppfiles/bin/mysql',
-            '/opt/lampp/bin/mysql',
-        ];
-        
-        $this->mysqldumpPath = 'mysqldump'; // Fallback to standard PATH
-        foreach ($possibleMysqldumpPaths as $path) {
-            if (is_file($path)) {
-                $this->mysqldumpPath = $path;
-                break;
-            }
-        }
-        
-        $this->mysqlPath = 'mysql'; // Fallback to standard PATH
-        foreach ($possibleMysqlPaths as $path) {
-            if (is_file($path)) {
-                $this->mysqlPath = $path;
-                break;
-            }
-        }
+        $this->pdo = getDB();
     }
 
     /**
-     * Generates a SQL dump and returns the file path to the temporary backup file.
+     * Generates a SQL dump using PDO and returns the file path to the temporary backup file.
      * The caller is responsible for deleting the file after use.
+     *
+     * This approach avoids shell commands (mysqldump), making it cross-platform
+     * compatible (Windows, Mac, Linux) without binary path issues.
      *
      * @throws RuntimeException if the backup fails
      */
     public function export(): string
     {
-        $tempFile = tempnam(sys_get_temp_dir(), 'db_backup_') . '.sql';
-        
-        $host = escapeshellarg($this->host);
-        $user = escapeshellarg($this->user);
-        $dbName = escapeshellarg($this->dbName);
-        
-        // On Windows, escapeshellcmd might cause issues if not used correctly, 
-        // wrapping executable path in quotes is usually safer.
-        $cmdBinary = escapeshellarg($this->mysqldumpPath);
-        
-        $command = "{$cmdBinary} -h {$host} -u {$user}";
-        if ($this->password !== '') {
-            $password = escapeshellarg($this->password);
-            $command .= " -p{$password}";
+        $tempFile = tempnam(sys_get_temp_dir(), 'db_backup_');
+        if ($tempFile === false) {
+            throw new RuntimeException("Failed to create temporary file for backup.");
         }
-        
-        $command .= " {$dbName} > " . escapeshellarg($tempFile);
-        
-        exec($command . ' 2>&1', $output, $resultCode);
-        
-        if ($resultCode !== 0) {
+        $tempFile .= '.sql';
+
+        $handle = fopen($tempFile, 'w');
+        if ($handle === false) {
+            throw new RuntimeException("Failed to open temporary file for writing.");
+        }
+
+        try {
+            $dbName = DB_NAME;
+            $timestamp = date('Y-m-d H:i:s');
+
+            // Write header
+            fwrite($handle, "-- Database Backup: {$dbName}\n");
+            fwrite($handle, "-- Generated: {$timestamp}\n");
+            fwrite($handle, "-- Server: " . DB_HOST . "\n");
+            fwrite($handle, "-- -----------------------------------------------\n\n");
+            fwrite($handle, "SET FOREIGN_KEY_CHECKS = 0;\n");
+            fwrite($handle, "SET SQL_MODE = 'NO_AUTO_VALUE_ON_ZERO';\n");
+            fwrite($handle, "SET AUTOCOMMIT = 0;\n");
+            fwrite($handle, "START TRANSACTION;\n\n");
+
+            // Get all tables
+            $tables = $this->pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
+
+            foreach ($tables as $table) {
+                $this->exportTable($handle, $table);
+            }
+
+            fwrite($handle, "SET FOREIGN_KEY_CHECKS = 1;\n");
+            fwrite($handle, "COMMIT;\n");
+
+            fclose($handle);
+
+            return $tempFile;
+        } catch (\Throwable $e) {
+            fclose($handle);
             if (is_file($tempFile)) {
                 unlink($tempFile);
             }
-            throw new RuntimeException("Database export failed. Error: " . implode("\n", $output));
+            throw new RuntimeException("Database export failed. Error: " . $e->getMessage());
         }
-        
-        return $tempFile;
+    }
+
+    /**
+     * Exports a single table's structure and data.
+     *
+     * @param resource $handle File handle to write to
+     * @param string $table Table name
+     */
+    private function exportTable($handle, string $table): void
+    {
+        $quotedTable = $this->pdo->quote($table);
+
+        // Table structure
+        fwrite($handle, "-- -----------------------------------------------\n");
+        fwrite($handle, "-- Table structure for `{$table}`\n");
+        fwrite($handle, "-- -----------------------------------------------\n\n");
+
+        fwrite($handle, "DROP TABLE IF EXISTS `{$table}`;\n");
+
+        $createStmt = $this->pdo->query("SHOW CREATE TABLE `{$table}`")->fetch(PDO::FETCH_ASSOC);
+        if (isset($createStmt['Create Table'])) {
+            fwrite($handle, $createStmt['Create Table'] . ";\n\n");
+        }
+
+        // Table data
+        $countStmt = $this->pdo->query("SELECT COUNT(*) FROM `{$table}`");
+        $rowCount = (int) $countStmt->fetchColumn();
+
+        if ($rowCount === 0) {
+            fwrite($handle, "-- No data in `{$table}`\n\n");
+            return;
+        }
+
+        fwrite($handle, "-- -----------------------------------------------\n");
+        fwrite($handle, "-- Data for `{$table}` ({$rowCount} rows)\n");
+        fwrite($handle, "-- -----------------------------------------------\n\n");
+
+        // Get column names
+        $columns = [];
+        $colStmt = $this->pdo->query("SHOW COLUMNS FROM `{$table}`");
+        while ($col = $colStmt->fetch(PDO::FETCH_ASSOC)) {
+            $columns[] = '`' . $col['Field'] . '`';
+        }
+        $columnList = implode(', ', $columns);
+
+        // Export in batches to handle large tables
+        $batchSize = 500;
+        $offset = 0;
+
+        while ($offset < $rowCount) {
+            $rows = $this->pdo->query(
+                "SELECT * FROM `{$table}` LIMIT {$batchSize} OFFSET {$offset}"
+            )->fetchAll(PDO::FETCH_NUM);
+
+            if (empty($rows)) {
+                break;
+            }
+
+            $values = [];
+            foreach ($rows as $row) {
+                $escapedValues = [];
+                foreach ($row as $value) {
+                    if ($value === null) {
+                        $escapedValues[] = 'NULL';
+                    } else {
+                        $escapedValues[] = $this->pdo->quote((string) $value);
+                    }
+                }
+                $values[] = '(' . implode(', ', $escapedValues) . ')';
+            }
+
+            fwrite($handle, "INSERT INTO `{$table}` ({$columnList}) VALUES\n");
+            fwrite($handle, implode(",\n", $values) . ";\n\n");
+
+            $offset += $batchSize;
+        }
     }
 
     /**
      * Imports an SQL file into the database.
      *
+     * Uses PDO exec() to run the SQL statements, making it cross-platform
+     * compatible without requiring the mysql binary.
+     *
      * @param string $filePath The path to the SQL file to import
      * @throws RuntimeException if the import fails
+     * @throws InvalidArgumentException if the file is not found
      */
     public function import(string $filePath): void
     {
         if (!is_file($filePath)) {
             throw new InvalidArgumentException("SQL file not found.");
         }
-        
-        $host = escapeshellarg($this->host);
-        $user = escapeshellarg($this->user);
-        $dbName = escapeshellarg($this->dbName);
-        
-        $cmdBinary = escapeshellarg($this->mysqlPath);
-        
-        $command = "{$cmdBinary} -h {$host} -u {$user}";
-        if ($this->password !== '') {
-            $password = escapeshellarg($this->password);
-            $command .= " -p{$password}";
+
+        $sql = file_get_contents($filePath);
+        if ($sql === false) {
+            throw new RuntimeException("Failed to read SQL file.");
         }
-        
-        $command .= " {$dbName} < " . escapeshellarg($filePath);
-        
-        exec($command . ' 2>&1', $output, $resultCode);
-        
-        if ($resultCode !== 0) {
-            throw new RuntimeException("Database import failed. Error: " . implode("\n", $output));
+
+        try {
+            $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            $this->pdo->exec("SET FOREIGN_KEY_CHECKS = 0");
+            $this->pdo->exec($sql);
+            $this->pdo->exec("SET FOREIGN_KEY_CHECKS = 1");
+        } catch (\PDOException $e) {
+            $this->pdo->exec("SET FOREIGN_KEY_CHECKS = 1");
+            throw new RuntimeException("Database import failed. Error: " . $e->getMessage());
         }
     }
 }
