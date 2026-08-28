@@ -23,6 +23,7 @@ $filters = [
 ];
 
 $hasFilters = implode('', $filters) !== '';
+$showAdvanced = ($hasFilters && $filters['q'] === '' && count($results) > 0) || ($hasFilters && ($filters['rank_id'] !== '' || $filters['unit_id'] !== '' || $filters['status'] !== '' || $filters['district'] !== '' || $filters['course_id'] !== '' || $filters['moq_id'] !== '' || $filters['moq_status'] !== '' || $filters['cadre_id'] !== '' || $filters['marital_status'] !== '' || $filters['platoon_id'] !== '' || $filters['blood_group_id'] !== '' || $filters['family_member'] !== '')) || isset($_GET['advanced']);
 $results = $hasFilters ? Personnel::filter($filters) : [];
 
 $ranks = LookupManager::getAll('ranks');
@@ -108,11 +109,11 @@ $districts = bangladeshDistricts();
             </div>
             <button class="btn btn-primary px-4 fw-medium" type="submit">Search</button>
             <button class="btn btn-light border text-secondary fw-medium px-3" type="button" data-bs-toggle="collapse"
-              data-bs-target="#advancedFilters" aria-expanded="false" aria-controls="advancedFilters">
+              data-bs-target="#advancedFilters" aria-expanded="<?= $showAdvanced ? 'true' : 'false' ?>" aria-controls="advancedFilters">
               <i class="ti ti-adjustments-horizontal me-1"></i> <span>Advanced</span>
             </button>
             <?php if ($hasFilters): ?>
-              <a href="search.php" class="btn btn-outline-danger px-3 fw-medium" title="Clear all filters">
+              <a href="search.php?advanced=1" class="btn btn-outline-danger px-3 fw-medium" title="Clear all filters">
                 <i class="ti ti-x"></i> <span>Clear</span>
               </a>
             <?php endif; ?>
@@ -120,7 +121,7 @@ $districts = bangladeshDistricts();
 
           <!-- Advanced Filters Collapsible -->
           <div
-            class="collapse <?= ($hasFilters && $filters['q'] === '' && count($results) > 0) || ($hasFilters && ($filters['rank_id'] !== '' || $filters['unit_id'] !== '' || $filters['status'] !== '' || $filters['district'] !== '' || $filters['course_id'] !== '' || $filters['moq_id'] !== '' || $filters['moq_status'] !== '' || $filters['cadre_id'] !== '' || $filters['marital_status'] !== '' || $filters['platoon_id'] !== '' || $filters['blood_group_id'] !== '' || $filters['family_member'] !== '')) ? 'show' : '' ?>"
+            class="collapse <?= $showAdvanced ? 'show' : '' ?>"
             id="advancedFilters">
             <div class="advanced-filters-collapse p-4">
               <div class="row g-3">
@@ -257,7 +258,7 @@ $districts = bangladeshDistricts();
                 </div>
               </div>
               <div class="mt-4 text-end">
-                <a href="search.php" class="btn btn-link text-secondary text-decoration-none me-2">Clear filters</a>
+                <a href="search.php?advanced=1" class="btn btn-link text-secondary text-decoration-none me-2">Clear filters</a>
                 <button type="submit" class="btn btn-dark px-4">Apply Filters</button>
               </div>
             </div>

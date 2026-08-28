@@ -10,7 +10,7 @@ class Personnel {
     // ---- List / Search ----
     public static function all(): array {
         $db = getDB();
-        return $db->query("SELECT p.*, r.name AS rank_name, u.name AS unit_name, b.name AS blood_group_name, a.name AS appointment_name, pf.family_member, pf.living_status,
+        return $db->query("SELECT p.*, r.name AS rank_name, u.name AS unit_name, b.name AS blood_group_name, a.name AS appointment_name, c.name AS cadre_name, pl.name AS platoon_name, pf.family_member, pf.living_status,
                             (SELECT from_date FROM personnel_leaves WHERE personnel_id = p.id AND CURRENT_DATE >= from_date AND CURRENT_DATE <= to_date LIMIT 1) AS current_leave_from,
                             (SELECT to_date FROM personnel_leaves WHERE personnel_id = p.id AND CURRENT_DATE >= from_date AND CURRENT_DATE <= to_date LIMIT 1) AS current_leave_to
                             FROM personnel p
@@ -18,13 +18,15 @@ class Personnel {
                             LEFT JOIN units u ON p.unit_id = u.id
                             LEFT JOIN blood_groups b ON p.blood_group_id = b.id
                             LEFT JOIN appointments a ON p.appointment_id = a.id
+                            LEFT JOIN cadres c ON p.cadre_id = c.id
+                            LEFT JOIN platoons pl ON p.platoon_id = pl.id
                             LEFT JOIN personnel_family pf ON p.id = pf.personnel_id
                             ORDER BY p.name")->fetchAll();
     }
 
     public static function filter(array $filters): array {
         $db = getDB();
-        $sql = "SELECT p.*, r.name AS rank_name, u.name AS unit_name, b.name AS blood_group_name, a.name AS appointment_name, pf.family_member, pf.living_status,
+        $sql = "SELECT p.*, r.name AS rank_name, u.name AS unit_name, b.name AS blood_group_name, a.name AS appointment_name, c.name AS cadre_name, pl.name AS platoon_name, pf.family_member, pf.living_status,
                             (SELECT from_date FROM personnel_leaves WHERE personnel_id = p.id AND CURRENT_DATE >= from_date AND CURRENT_DATE <= to_date LIMIT 1) AS current_leave_from,
                             (SELECT to_date FROM personnel_leaves WHERE personnel_id = p.id AND CURRENT_DATE >= from_date AND CURRENT_DATE <= to_date LIMIT 1) AS current_leave_to
             FROM personnel p
@@ -32,6 +34,8 @@ class Personnel {
             LEFT JOIN units u ON p.unit_id = u.id
             LEFT JOIN blood_groups b ON p.blood_group_id = b.id
             LEFT JOIN appointments a ON p.appointment_id = a.id
+            LEFT JOIN cadres c ON p.cadre_id = c.id
+            LEFT JOIN platoons pl ON p.platoon_id = pl.id
             LEFT JOIN personnel_family pf ON p.id = pf.personnel_id
             WHERE 1=1";
         $params = [];
