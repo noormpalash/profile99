@@ -17,6 +17,7 @@ $platoonId = trim((string) ($_GET['platoon_id'] ?? ''));
 $rankId = trim((string) ($_GET['rank_id'] ?? ''));
 $unitId = trim((string) ($_GET['unit_id'] ?? ''));
 $statusFilter = trim((string) ($_GET['status'] ?? ''));
+$currentlyOnLeave = !empty($_GET['currently_on_leave']);
 $withoutWeekend = !empty($_GET['without_weekend']);
 
 // Lookup data
@@ -52,6 +53,9 @@ if ($statusFilter !== '') {
     $where[] = "p.status = ?";
     $params[] = $statusFilter;
   }
+}
+if ($currentlyOnLeave) {
+  $where[] = "EXISTS (SELECT 1 FROM personnel_leaves cur_l WHERE cur_l.personnel_id = p.id AND CURRENT_DATE >= cur_l.from_date AND CURRENT_DATE <= cur_l.to_date)";
 }
 
 $whereSql = !empty($where) ? 'WHERE ' . implode(' AND ', $where) : '';
@@ -126,38 +130,6 @@ foreach ($seniorityList as $row) {
 <?php include __DIR__ . '/../includes/header.php'; ?>
 
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-
-  .seniority-page,
-  .seniority-page input,
-  .seniority-page select,
-  .seniority-page button,
-  .seniority-page table,
-  .seniority-page th,
-  .seniority-page td,
-  .seniority-page .form-control,
-  .seniority-page .form-select,
-  .swal2-popup {
-    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  }
-
-  .seniority-page .ti,
-  .swal2-popup .ti,
-  [class^="ti-"],
-  [class*=" ti-"] {
-    font-family: 'tabler-icons' !important;
-  }
-
-  .seniority-page .page-header h4 {
-    font-family: 'Plus Jakarta Sans', sans-serif !important;
-    font-weight: 800;
-    font-size: 1.6rem;
-    letter-spacing: -0.03em;
-    background: linear-gradient(135deg, #1e293b, #475569);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
-
   /* ── Stat Cards ── */
   .stat-card {
     background: #ffffff;
@@ -231,8 +203,71 @@ foreach ($seniorityList as $row) {
   .filter-panel {
     background: #ffffff;
     border-radius: 16px;
-    border: 1px solid rgba(148, 163, 184, 0.12);
-    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.04), 0 2px 6px -1px rgba(15, 23, 42, 0.02);
+  }
+
+  .filter-panel .form-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #475569;
+    letter-spacing: 0.01em;
+  }
+
+  .filter-panel .form-control,
+  .filter-panel .form-select,
+  .filter-panel .input-group-text {
+    border-radius: 10px;
+    border-color: #e2e8f0;
+    font-size: 0.88rem;
+  }
+
+  .filter-panel .form-control:focus,
+  .filter-panel .form-select:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+  }
+
+  .filter-toggle-pill {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    padding: 6px 14px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    user-select: none;
+    margin: 0;
+  }
+
+  .filter-toggle-pill:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+  }
+
+  .filter-toggle-pill.active {
+    background: #eff6ff;
+    border-color: #93c5fd;
+    box-shadow: 0 1px 3px rgba(59, 130, 246, 0.08);
+  }
+
+  .filter-toggle-pill .form-check-input {
+    cursor: pointer;
+    width: 2em;
+    height: 1.15em;
+    margin: 0;
+  }
+
+  .filter-toggle-pill .pill-text {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #475569;
+  }
+
+  .filter-toggle-pill.active .pill-text {
+    color: #1d4ed8;
   }
 
   /* ── Seniority Rank Badges ── */
@@ -309,7 +344,6 @@ foreach ($seniorityList as $row) {
       background: #ffffff !important;
       color: #000000 !important;
       font-size: 10pt !important;
-      font-family: Arial, sans-serif !important;
     }
 
     .print-text-only {
@@ -368,14 +402,14 @@ foreach ($seniorityList as $row) {
       <div>
         <h4><i class="ti ti-calendar-stats text-primary me-2"></i>Leave Seniority</h4>
         <div class="text-muted" style="font-size: 0.85rem;">
-          Personnel leave priority state = senior priority.
+          Personnel leave priority state.
         </div>
       </div>
       <div class="d-flex align-items-center gap-2">
         <?php if (Auth::hasPermission('print_records')): ?>
-        <button type="button" class="btn-print no-print" onclick="printLeaveSeniority()">
-          <i class="ti ti-printer"></i> Print
-        </button>
+          <button type="button" class="btn-print no-print" onclick="printLeaveSeniority()">
+            <i class="ti ti-printer"></i> Print
+          </button>
         <?php endif; ?>
       </div>
     </div>
@@ -413,61 +447,97 @@ foreach ($seniorityList as $row) {
     </div>
 
     <!-- Filter Bar -->
-    <div class="filter-panel p-3 mb-4 no-print">
-      <form method="get" class="row g-2 align-items-end">
-        <div class="col-md-3 col-sm-6">
-          <label class="form-label small text-secondary fw-medium mb-1">Search</label>
-          <div class="input-group input-group-sm">
-            <span class="input-group-text bg-white"><i class="ti ti-search text-muted"></i></span>
-            <input type="text" name="q" class="form-control" value="<?= htmlspecialchars($q) ?>"
-              placeholder="Name or P No">
+    <div class="filter-panel p-3 p-md-4 mb-4 no-print">
+      <form method="get" class="mb-0">
+        <!-- Main Form Inputs -->
+        <div class="row g-3">
+          <div class="col-lg-3 col-md-6">
+            <label class="form-label mb-1"><i class="ti ti-search me-1 text-muted"></i>Search</label>
+            <div class="input-group">
+              <span class="input-group-text bg-light text-muted border-end-0"
+                style="border-top-right-radius: 0; border-bottom-right-radius: 0;">
+                <i class="ti ti-search"></i>
+              </span>
+              <input type="text" name="q" class="form-control border-start-0 ps-0" value="<?= htmlspecialchars($q) ?>"
+                placeholder="Name or personal no..." style="border-top-left-radius: 0; border-bottom-left-radius: 0;">
+            </div>
+          </div>
+          <div class="col-lg-3 col-md-6 col-sm-6">
+            <label class="form-label mb-1"><i class="ti ti-users me-1 text-muted"></i>Platoon</label>
+            <select name="platoon_id" class="form-select">
+              <option value="">All Platoons</option>
+              <?php foreach ($platoons as $p): ?>
+                <option value="<?= $p['id'] ?>" <?= $platoonId === (string) $p['id'] ? 'selected' : '' ?>>
+                  <?= htmlspecialchars($p['name']) ?>
+                </option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+          <div class="col-lg-3 col-md-6 col-sm-6">
+            <label class="form-label mb-1"><i class="ti ti-military-rank me-1 text-muted"></i>Rank</label>
+            <select name="rank_id" class="form-select">
+              <option value="">All Ranks</option>
+              <?php foreach ($ranks as $r): ?>
+                <option value="<?= $r['id'] ?>" <?= $rankId === (string) $r['id'] ? 'selected' : '' ?>>
+                  <?= htmlspecialchars($r['name']) ?>
+                </option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+          <div class="col-lg-3 col-md-6 col-sm-6">
+            <label class="form-label mb-1"><i class="ti ti-building me-1 text-muted"></i>Unit</label>
+            <select name="unit_id" class="form-select">
+              <option value="">All Units</option>
+              <?php foreach ($units as $u): ?>
+                <option value="<?= $u['id'] ?>" <?= $unitId === (string) $u['id'] ? 'selected' : '' ?>>
+                  <?= htmlspecialchars($u['name']) ?>
+                </option>
+              <?php endforeach; ?>
+            </select>
           </div>
         </div>
-        <div class="col-md-2 col-sm-6">
-          <label class="form-label small text-secondary fw-medium mb-1">Platoon</label>
-          <select name="platoon_id" class="form-select form-select-sm">
-            <option value="">All Platoons</option>
-            <?php foreach ($platoons as $p): ?>
-              <option value="<?= $p['id'] ?>" <?= $platoonId === (string) $p['id'] ? 'selected' : '' ?>>
-                <?= htmlspecialchars($p['name']) ?>
-              </option>
-            <?php endforeach; ?>
-          </select>
-        </div>
-        <div class="col-md-2 col-sm-6">
-          <label class="form-label small text-secondary fw-medium mb-1">Rank</label>
-          <select name="rank_id" class="form-select form-select-sm">
-            <option value="">All Ranks</option>
-            <?php foreach ($ranks as $r): ?>
-              <option value="<?= $r['id'] ?>" <?= $rankId === (string) $r['id'] ? 'selected' : '' ?>>
-                <?= htmlspecialchars($r['name']) ?>
-              </option>
-            <?php endforeach; ?>
-          </select>
-        </div>
-        <div class="col-md-2 col-sm-6">
-          <label class="form-label small text-secondary fw-medium mb-1">Unit</label>
-          <select name="unit_id" class="form-select form-select-sm">
-            <option value="">All Units</option>
-            <?php foreach ($units as $u): ?>
-              <option value="<?= $u['id'] ?>" <?= $unitId === (string) $u['id'] ? 'selected' : '' ?>>
-                <?= htmlspecialchars($u['name']) ?>
-              </option>
-            <?php endforeach; ?>
-          </select>
-        </div>
-        <div class="col-md-3 col-sm-6">
-          <div class="form-check form-switch mt-sm-3 pt-1">
-            <input class="form-check-input" type="checkbox" name="without_weekend" value="1" id="filterWithoutWeekend"
-              <?= $withoutWeekend ? 'checked' : '' ?> onchange="this.form.submit()">
-            <label class="form-check-label small text-dark" for="filterWithoutWeekend">Without Weekend Leave</label>
+
+        <!-- Toggles & Action Buttons Footer -->
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 pt-3 mt-3 border-top">
+          <div class="d-flex flex-wrap align-items-center gap-2">
+            <label class="filter-toggle-pill <?= $currentlyOnLeave ? 'active' : '' ?>">
+              <div class="form-check form-switch m-0 p-0 d-flex align-items-center">
+                <input class="form-check-input m-0" type="checkbox" name="currently_on_leave" value="1"
+                  id="filterCurrentlyOnLeave" <?= $currentlyOnLeave ? 'checked' : '' ?> onchange="this.form.submit()">
+              </div>
+              <span class="pill-text">
+                <i class="ti ti-calendar-off me-1"></i>Currently on leave
+              </span>
+            </label>
+
+            <label class="filter-toggle-pill <?= $withoutWeekend ? 'active' : '' ?>">
+              <div class="form-check form-switch m-0 p-0 d-flex align-items-center">
+                <input class="form-check-input m-0" type="checkbox" name="without_weekend" value="1"
+                  id="filterWithoutWeekend" <?= $withoutWeekend ? 'checked' : '' ?> onchange="this.form.submit()">
+              </div>
+              <span class="pill-text">
+                <i class="ti ti-calendar-minus me-1"></i>Without Weekend Leave
+              </span>
+            </label>
           </div>
-        </div>
-        <div class="col-md-12 col-lg-auto ms-lg-auto d-flex gap-2 mt-2 mt-lg-0">
-          <button type="submit" class="btn btn-sm btn-primary px-3">
-            <i class="ti ti-filter me-1"></i> Filter
-          </button>
-          <a href="leave_seniority.php" class="btn btn-sm btn-outline-secondary">Reset</a>
+
+          <div class="d-flex align-items-center gap-2 ms-auto">
+            <?php
+            $hasActiveFilters = ($q !== '' || $platoonId !== '' || $rankId !== '' || $unitId !== '' || $statusFilter !== '' || $currentlyOnLeave || $withoutWeekend);
+            if ($hasActiveFilters):
+              ?>
+              <a href="leave_seniority.php"
+                class="btn btn-light border px-3 rounded-pill text-secondary fw-medium shadow-none d-inline-flex align-items-center gap-1"
+                style="font-size: 0.86rem;">
+                <i class="ti ti-rotate-clockwise"></i> Reset
+              </a>
+            <?php endif; ?>
+            <button type="submit"
+              class="btn btn-primary px-4 rounded-pill fw-semibold shadow-sm d-inline-flex align-items-center gap-1"
+              style="font-size: 0.86rem;">
+              <i class="ti ti-filter"></i> Apply Filters
+            </button>
+          </div>
         </div>
       </form>
     </div>
@@ -529,7 +599,7 @@ foreach ($seniorityList as $row) {
                     </td>
 
                     <!-- Personal No -->
-                    <td class="font-monospace"><?= htmlspecialchars($row['personal_number']) ?></td>
+                    <td><?= htmlspecialchars($row['personal_number']) ?></td>
 
                     <!-- Rank -->
                     <td><?= htmlspecialchars($row['rank_name'] ?? '-') ?></td>
@@ -576,8 +646,7 @@ foreach ($seniorityList as $row) {
                           <span class="print-text-only"><?= (int) $daysSince ?> days ago</span>
                         <?php endif; ?>
                       <?php else: ?>
-                        <span
-                          class="badge bg-success-subtle text-success border border-success-subtle no-print">Never</span>
+                        <span class="badge bg-success-subtle text-success border border-success-subtle no-print">Never</span>
                         <span class="print-text-only">Never</span>
                       <?php endif; ?>
                     </td>
@@ -613,6 +682,7 @@ foreach ($seniorityList as $row) {
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
   const currentWithoutWeekend = <?= $withoutWeekend ? 'true' : 'false' ?>;
+  const currentCurrentlyOnLeave = <?= $currentlyOnLeave ? 'true' : 'false' ?>;
 
   function printLeaveSeniority(defaultHeading = 'LEAVE SENIORITY STATE', defaultSubHeading = '<?= htmlspecialchars(AppSettings::get('app_title', 'Unit Personnel System')) ?>', defaultDate = '<?= date('Y-m-d') ?>', defaultPageSize = 'A4') {
     Swal.fire({
@@ -629,6 +699,10 @@ foreach ($seniorityList as $row) {
         '<option value="Letter" ' + (defaultPageSize === 'Letter' ? 'selected' : '') + '>Letter Landscape</option>' +
         '</select>' +
         '<div class="form-check form-switch text-start" style="max-width: 90%; margin: 10px auto 4px;">' +
+        '<input class="form-check-input" type="checkbox" id="printCurrentlyOnLeave" ' + (currentCurrentlyOnLeave ? 'checked' : '') + '>' +
+        '<label class="form-check-label fw-bold small text-dark ms-1" for="printCurrentlyOnLeave">Currently on leave</label>' +
+        '</div>' +
+        '<div class="form-check form-switch text-start" style="max-width: 90%; margin: 6px auto 4px;">' +
         '<input class="form-check-input" type="checkbox" id="printWithoutWeekend" ' + (currentWithoutWeekend ? 'checked' : '') + '>' +
         '<label class="form-check-label fw-bold small text-dark ms-1" for="printWithoutWeekend">Without Weekend Leave</label>' +
         '</div>',
@@ -641,12 +715,14 @@ foreach ($seniorityList as $row) {
           subHeading: document.getElementById('printSubHeading').value.trim(),
           date: document.getElementById('printDate').value,
           pageSize: document.getElementById('printPageSize').value,
+          currentlyOnLeave: document.getElementById('printCurrentlyOnLeave').checked,
           withoutWeekend: document.getElementById('printWithoutWeekend').checked
         }
       }
     }).then((result) => {
       if (!result.isConfirmed) return;
 
+      let currentlyOnLeaveVal = result.value.currentlyOnLeave;
       let withoutWeekendVal = result.value.withoutWeekend;
       let heading = result.value.heading;
       let subHeading = result.value.subHeading;
@@ -654,8 +730,13 @@ foreach ($seniorityList as $row) {
       let pageSize = result.value.pageSize;
 
       // If toggle differs from current data state, reload with new filter and auto-print
-      if (withoutWeekendVal !== currentWithoutWeekend) {
+      if (currentlyOnLeaveVal !== currentCurrentlyOnLeave || withoutWeekendVal !== currentWithoutWeekend) {
         const url = new URL(window.location.href);
+        if (currentlyOnLeaveVal) {
+          url.searchParams.set('currently_on_leave', '1');
+        } else {
+          url.searchParams.delete('currently_on_leave');
+        }
         if (withoutWeekendVal) {
           url.searchParams.set('without_weekend', '1');
         } else {

@@ -24,8 +24,9 @@ $filters = [
 ];
 
 $hasFilters = implode('', $filters) !== '';
-$showAdvanced = ($hasFilters && $filters['q'] === '' && count($results) > 0) || ($hasFilters && ($filters['rank_id'] !== '' || $filters['unit_id'] !== '' || $filters['status'] !== '' || $filters['district'] !== '' || $filters['course_id'] !== '' || $filters['moq_id'] !== '' || $filters['moq_status'] !== '' || $filters['cadre_id'] !== '' || $filters['marital_status'] !== '' || $filters['platoon_id'] !== '' || $filters['blood_group_id'] !== '' || $filters['family_member'] !== '')) || isset($_GET['advanced']);
 $results = $hasFilters ? Personnel::filter($filters) : [];
+$hasAdvancedFilters = ($filters['rank_id'] !== '' || $filters['unit_id'] !== '' || $filters['status'] !== '' || $filters['district'] !== '' || $filters['course_id'] !== '' || $filters['moq_id'] !== '' || $filters['moq_status'] !== '' || $filters['cadre_id'] !== '' || $filters['marital_status'] !== '' || $filters['platoon_id'] !== '' || $filters['blood_group_id'] !== '' || $filters['family_member'] !== '');
+$showAdvanced = $hasAdvancedFilters || isset($_GET['advanced']);
 
 $ranks = LookupManager::getAll('ranks');
 $units = LookupManager::getAll('units');

@@ -333,25 +333,34 @@ $districts = bangladeshDistricts();
         <tbody id="printPersonnelTbody">
           <?php
           $rankWeights = [
-            'Major' => 1, 'MAJ' => 1, 'Maj' => 1,
-            'Captain' => 2, 'CAPT' => 2, 'Capt' => 2,
-            'Lieutenant' => 3, 'LT' => 3, 'Lt' => 3,
-            'Senior Warrant Officer' => 4, 'SWO' => 4,
-            'Warrant Officer' => 5, 'WO' => 5,
-            'Sergeant' => 6, 'SGT' => 6, 'Sgt' => 6,
-            'Corporal' => 7, 'CPL' => 7, 'Cpl' => 7,
-            'Lance Corporal' => 8, 'LCPL' => 8, 'Lcpl' => 8,
-            'Sainik' => 9, 'SNK' => 9, 'SNK(GD)' => 9, 'Snk' => 9,
-            'CK' => 10,
-            'NC(E)' => 11,
-            'NC(U)' => 12,
-            'ATT' => 13
+            'LIEUTENANT GENERAL' => 1, 'LT GEN' => 1, 'LT. GEN' => 1,
+            'MAJOR GENERAL' => 2, 'MAJ GEN' => 2, 'MAJ. GEN' => 2,
+            'BRIGADIER GENERAL' => 3, 'BRIG GEN' => 3, 'BRIG. GEN' => 3,
+            'COLONEL' => 4, 'COL' => 4,
+            'LIEUTENANT COLONEL' => 5, 'LT COL' => 5, 'LT. COL' => 5,
+            'MAJOR' => 6, 'MAJ' => 6,
+            'CAPTAIN' => 7, 'CAPT' => 7,
+            'LIEUTENANT' => 8, 'LT' => 8,
+            'SECOND LIEUTENANT' => 9, '2LT' => 9, '2ND LT' => 9,
+            'HONORARY CAPTAIN' => 10, 'H/CAPT' => 10,
+            'HONORARY LIEUTENANT' => 11, 'H/LT' => 11,
+            'MASTER WARRANT OFFICER' => 12, 'MWO' => 12,
+            'SENIOR WARRANT OFFICER' => 13, 'SWO' => 13,
+            'WARRANT OFFICER' => 14, 'WO' => 14,
+            'SERGEANT' => 15, 'SGT' => 15,
+            'CORPORAL' => 16, 'CPL' => 16,
+            'LANCE CORPORAL' => 17, 'LCPL' => 17,
+            'SAINIK' => 18, 'SNK' => 18, 'SNK(GD)' => 18, 'SOLDIER' => 18,
+            'COOK' => 19, 'CK' => 19,
+            'NC(E)' => 20, 'NCE' => 20,
+            'NC(U)' => 21, 'NCU' => 21,
+            'ATT' => 22
           ];
           $statusFilter = $filters['status'] ?? '';
           $isLeaveFilter = ($statusFilter === 'on_leave' || strpos($statusFilter, 'leave_') === 0);
 
           foreach ($people as $p):
-            $rName = $p['rank_name'] ?? '';
+            $rName = strtoupper(trim((string) ($p['rank_name'] ?? '')));
             $weight = $rankWeights[$rName] ?? 99;
             ?>
             <tr data-pno="<?= htmlspecialchars($p['personal_number']) ?>" data-seniority="<?= $weight ?>">
@@ -422,15 +431,24 @@ $districts = bangladeshDistricts();
     let printRowsArray = Array.from(document.querySelectorAll('#printPersonnelTbody tr'));
 
     const comparePNo = (pno1, pno2) => {
-      const a = pno1.toUpperCase();
-      const b = pno2.toUpperCase();
+      const a = (pno1 || '').trim().toUpperCase();
+      const b = (pno2 || '').trim().toUpperCase();
       if (a.startsWith('BJO') && !b.startsWith('BJO')) return -1;
       if (!a.startsWith('BJO') && b.startsWith('BJO')) return 1;
-      return a.localeCompare(b);
+      return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
     };
 
     if (options.maintainSeniorityByPNo) {
       printRowsArray.sort((a, b) => {
+        const rankA = parseInt(a.getAttribute('data-seniority') || '99', 10);
+        const rankB = parseInt(b.getAttribute('data-seniority') || '99', 10);
+
+        // 1. Rank priority (Higher rank = lower weight = senior)
+        if (rankA !== rankB) {
+          return rankA - rankB;
+        }
+
+        // 2. Personal number priority within same rank
         const pnoA = a.getAttribute('data-pno') || '';
         const pnoB = b.getAttribute('data-pno') || '';
         return comparePNo(pnoA, pnoB);

@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.5.0] - 2026-08-29
+
+### Added
+- **Leave History Module (`leave_history.php`)**: Full leave ledger grouped by year, current calendar year vs all-time totals, search/filter, and expandable record breakdown.
+- **Leave History Reset Engine (`reset_leave_history.php`)**: Secure individual and bulk leave history reset with SweetAlert confirmations, CSRF protection, and audit logging.
+- **Granular Leave Permissions**: Added `leave_history` and `reset_leave_history` permission nodes via automated database migration.
+- **Leave Matrix Sidebar Group**: Consolidated "Leave Seniority" and "Leave History" under a collapsible "Leave Matrix" dropdown.
+- **User Access Sidebar Group**: Consolidated "User Management" and "Roles & Permissions" under a collapsible "User Access" dropdown.
+- **Annual Leave Reset Window**: Profile page "Leave Status" displays and calculates totals for the active calendar year only.
+- **Currently on Leave Filter**: Live toggle switch added to Leave Seniority filter panel and print modal.
+
+### Changed
+- **Army Seniority Print Ordering**: Print engine prioritizes rank hierarchy first, then military Personal Number (BJO natural sorting) within matching ranks.
+- **Leave Seniority Filter Redesign**: Clean 4-column filter grid with interactive pill switches and dedicated action footer.
+- **Standardized Typography**: Aligned Leave Seniority styles with system-wide typography.
+
+### Fixed
+- **Advanced Search 500 Error**: Resolved fatal `TypeError` in `search.php` by properly sequencing filter initialization before result evaluation.
+
+---
+
 ## [1.4.0] - 2026-08-28
 
 ### Added

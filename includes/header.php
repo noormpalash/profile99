@@ -50,7 +50,7 @@
             </div>
             <div class="d-none d-sm-block text-white text-start">
               <div class="user-name fw-semibold lh-1 mb-1" style="font-size: 0.95rem;"><?= htmlspecialchars($_SESSION['name'] ?? $_SESSION['username']) ?></div>
-              <div class="user-role small opacity-75 lh-1 text-capitalize"><?= htmlspecialchars(Auth::role()) ?></div>
+              <div class="user-role small opacity-75 lh-1 text-capitalize"><?= htmlspecialchars(Auth::role() ?? '') ?></div>
             </div>
             <i class="ti ti-chevron-down text-white opacity-75 ms-1 d-none d-sm-block"></i>
           </button>

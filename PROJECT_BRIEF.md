@@ -34,8 +34,9 @@ The **Unit Personnel Management System** is a dedicated web application for admi
 | Feature | Description | Business Impact |
 | :--- | :--- | :--- |
 | **Comprehensive Dossier** | Stores basic info, service history, yearly cycles, family details, health status, courses, and emergency contacts. | Centralizes all personnel records in one searchable database. |
+| **Leave Matrix Engine** | Tracks leave seniority queue, yearly reset cycles, multi-year historical logs, and permission-gated audit resets. | Provides full transparency for leave approvals and rotation planning. |
 | **Two-Tier Approval System** | Operator edits go to a pending queue for administrative sign-off with side-by-side visual diffs. | Eliminates accidental data overwrites and unauthorized updates. |
-| **Selective Print Engine** | Print records on standard paper sizes (A4, Legal, Letter) with optional columns and seniority sorting. | Saves hours spent manually compiling and formatting print sheets. |
+| **Selective Print Engine** | Print records on standard paper sizes (A4, Legal, Letter) with optional columns and rank-hierarchical military seniority sorting. | Saves hours spent manually compiling and formatting print sheets. |
 | **Multi-Criteria Search** | Filter by rank, unit, blood group, district, qualification status, and leave types. Filter panels stay open across queries. | Speeds up personnel lookups from minutes to seconds. |
 | **Bulk Excel Operations** | Import new personnel or batch update existing files via formatted Excel spreadsheets. | Eliminates manual repetitive data entry during annual intakes. |
 | **Automated Media Processing** | Built-in 400x400 photo cropping and validation on upload. | Maintains consistent, clean record cards without external photo editing. |

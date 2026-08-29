@@ -860,14 +860,29 @@ $canEdit = Auth::hasAnyPermission([
         <!-- Leave Status Section (Right side) -->
         <div class="col-lg-4">
           <div class="sn-box h-100">
-            <div class="sn-header">
-              <h5>Leave Status</h5>
+            <div class="sn-header d-flex justify-content-between align-items-center">
+              <h5>Leave Status <span class="text-muted fw-normal" style="font-size: 0.75rem;">(<?= date('Y') ?>)</span></h5>
+              <?php if (Auth::hasPermission('leave_history')): ?>
+                <a href="leave_history.php?q=<?= urlencode($person['personal_number'] ?? '') ?>" class="btn btn-sm btn-outline-primary py-0 px-2 no-print" style="font-size: 0.72rem; border-radius: 999px;">
+                  <i class="ti ti-history me-1"></i>All History
+                </a>
+              <?php endif; ?>
             </div>
             <div class="sn-body p-2">
-              <?php if ($leaves && count($leaves) > 0): ?>
-                <?php 
+              <?php
+                $currentYear = (int) date('Y');
+                $currentYearLeaves = array_filter($leaves ?? [], static function (array $l) use ($currentYear): bool {
+                    $fromDate = $l['from_date'] ?? '';
+                    if ($fromDate === '') {
+                        return false;
+                    }
+                    return (int) date('Y', strtotime($fromDate)) === $currentYear;
+                });
+              ?>
+              <?php if (!empty($currentYearLeaves)): ?>
+                <?php
                    $totalLeaveDays = 0;
-                   foreach ($leaves as $l) {
+                   foreach ($currentYearLeaves as $l) {
                        $totalLeaveDays += (int)($l['total_days'] ?? 0);
                    }
                 ?>
@@ -882,7 +897,7 @@ $canEdit = Auth::hasAnyPermission([
                       </tr>
                     </thead>
                     <tbody>
-                      <?php foreach ($leaves as $leave): ?>
+                      <?php foreach ($currentYearLeaves as $leave): ?>
                         <tr>
                           <td><?= $displayDate($leave['from_date']) ?></td>
                           <td><?= $displayDate($leave['to_date']) ?></td>
@@ -1411,9 +1426,9 @@ $canEdit = Auth::hasAnyPermission([
     </table>
   </div>
 
-  <?php if ($leaves && count($leaves) > 0): ?>
+  <?php if (!empty($currentYearLeaves)): ?>
   <div class="print-sec-leave">
-    <div class="bio-section-title avoid-break">8. Leave Records</div>
+    <div class="bio-section-title avoid-break">8. Leave Records (<?= date('Y') ?>)</div>
     <table class="bio-table bio-table-list avoid-break">
       <tr>
         <th>From</th>
@@ -1421,7 +1436,7 @@ $canEdit = Auth::hasAnyPermission([
         <th>Type</th>
         <th>Days</th>
       </tr>
-      <?php foreach ($leaves as $leave): ?>
+      <?php foreach ($currentYearLeaves as $leave): ?>
         <tr>
           <td><?= $displayDate($leave['from_date'] ?? null) ?></td>
           <td><?= $displayDate($leave['to_date'] ?? null) ?></td>

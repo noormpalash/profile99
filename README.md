@@ -3,10 +3,13 @@
 A robust, granular permissions-based personnel management system built with PHP 8.x and MySQL.
 
 ## 1. Features
-- **Granular Permissions:** Custom roles with specific access control (e.g., `techadmin`, `superadmin`, `admin`, `user`).
-- **Approval Workflow:** Edits by non-admin users go to a pending queue for approval.
-- **Activity Logs:** Tracks all CRUD operations and logins.
+- **Granular Permissions (RBAC):** Role-based access control with permissions for Leave History, Seniority, User Management, Printing, and DB management.
+- **Leave Matrix Suite:** Seniority queue calculation, multi-year leave histories, annual reset cycles, and secure individual/bulk reset.
+- **Selective Print Engine:** Custom column selection, paper size choice, and hierarchical Army Seniority sorting.
+- **Approval Workflow:** Edits by non-admin users go to a pending queue for approval with visual diffs.
+- **Activity Logs:** Tracks all CRUD operations, logins, and administrative resets.
 - **Bulk Import/Export:** Excel-based data ingestion using PhpSpreadsheet.
+- **Database & Migration Tools:** Browser-based migration runner and database backup/restore snapshots.
 - **Dynamic App Settings:** Customizable app title, name, and logo via UI.
 - **Comprehensive Profiles:** Tracks Cadres, Courses, MOQs, Leaves, Social Links, and more.
 
