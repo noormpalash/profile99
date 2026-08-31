@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.6.0] - 2026-08-31
+
+### Added
+- **Personnel-Level MOQ Bypass**: Added an individual `is_bypass` toggle to the Add and Edit Personnel forms. Bypassed MOQs count as fulfilled for that individual and display a `Bypassed` badge on their profile.
+- **Centralized Promotion Engine**: Introduced `Personnel::checkPromotionStatus()` to evaluate rank-based promotion criteria across MOQs, Courses, and Cadres.
+- **Dynamic Sergeant Course Equivalencies**: Configured Sergeant promotion checks so any completed course satisfies the Utility Course requirement, and an NCOC course satisfies the NCOC MOQ requirement.
+
+### Fixed
+- **Profile & Dashboard MOQ Status**: Resolved an issue where abbreviated rank titles (`SNK`, `LCPL`, `CPL`, `SGT`, `WO`, `SWO`, `MWO`) failed promotion logic checks and displayed `N/A`.
+- **Cross-Table Qualification Matching**: Expanded qualification checks to recognize training records entered under Courses or Cadres rather than requiring strict MOQ table entries.
+
+---
+
 ## [1.5.0] - 2026-08-29
 
 ### Added

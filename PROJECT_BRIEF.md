@@ -18,6 +18,7 @@ The **Unit Personnel Management System** is a dedicated web application for admi
 - **Streamlined Workflow**: Input updates into a clean interface without worrying about breaking master database records.
 
 ### 3. For Training & Medical Officers
+- **Promotion & MOQ Qualification**: Real-time evaluation of rank-specific mandatory qualifications (BTT, PE, PC, ATT, NCOC, Utility Course, CLM Cadre) across courses and cadres, with individual bypass controls.
 - **Fitness Tracking**: Monitor 4-cycle yearly plans, IPFT scores, RET, and Speed March results.
 - **Medical Category Oversight**: Maintain up-to-date health categories and medical restrictions to avoid deploying unfit personnel.
 
@@ -34,6 +35,7 @@ The **Unit Personnel Management System** is a dedicated web application for admi
 | Feature | Description | Business Impact |
 | :--- | :--- | :--- |
 | **Comprehensive Dossier** | Stores basic info, service history, yearly cycles, family details, health status, courses, and emergency contacts. | Centralizes all personnel records in one searchable database. |
+| **Promotion & MOQ Engine** | Evaluates promotion eligibility by rank across MOQs, courses, and cadres with per-personnel bypass support. | Automates promotion screening and eliminates manual eligibility checks. |
 | **Leave Matrix Engine** | Tracks leave seniority queue, yearly reset cycles, multi-year historical logs, and permission-gated audit resets. | Provides full transparency for leave approvals and rotation planning. |
 | **Two-Tier Approval System** | Operator edits go to a pending queue for administrative sign-off with side-by-side visual diffs. | Eliminates accidental data overwrites and unauthorized updates. |
 | **Selective Print Engine** | Print records on standard paper sizes (A4, Legal, Letter) with optional columns and rank-hierarchical military seniority sorting. | Saves hours spent manually compiling and formatting print sheets. |

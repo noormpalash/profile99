@@ -11,7 +11,7 @@ class ApprovalFormatter {
     private static function injectMissingPermittedFields(array $data, array $perms): array {
         $map = [
             'edit_personnel_course' => ['course_id' => [], 'course_result' => []],
-            'edit_personnel_moqs' => ['moq_id' => [], 'moq_result' => []],
+            'edit_personnel_moqs' => ['moq_id' => [], 'moq_result' => [], 'moq_bypass' => []],
             'edit_personnel_cadres' => ['cadre_ids' => []],
             'edit_personnel_education' => ['civil_education' => ''],
             'edit_personnel_service' => ['admission_date' => '', 'retirement_date' => '', 'un_mission' => '', 'punishment_note' => ''],
@@ -503,6 +503,16 @@ class ApprovalFormatter {
             $res = [];
             foreach ($moqs as $m) {
                 $res[$m['moq_id']] = (string)$m['result'];
+            }
+            return $res;
+        }
+        if ($key === 'moq_bypass') {
+            $moqs = Personnel::getMoqs($personnelId);
+            $res = [];
+            foreach ($moqs as $m) {
+                if (!empty($m['is_bypass'])) {
+                    $res[$m['moq_id']] = '1';
+                }
             }
             return $res;
         }

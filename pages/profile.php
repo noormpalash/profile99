@@ -25,35 +25,11 @@ $cadres = Personnel::getCadres($id);
 $leaves = Personnel::getLeaves($id);
 
 // Promotion Qualification Logic
-$hasPromotionLogic = false;
-$isQualified = false;
-$rankLower = strtolower(trim($person['rank_name'] ?? ''));
-if (in_array($rankLower, ['sainik', 'lance corporal', 'corporal', 'sergeant', 'warrant officer'])) {
-    $hasPromotionLogic = true;
-    $moqNames = array_map(fn($m) => strtolower(trim($m['moq_name'] ?? '')), $moqs);
-    $hasMoq = fn($name) => in_array(strtolower($name), $moqNames);
+$promoStatus = Personnel::checkPromotionStatus($person['rank_name'] ?? '', $moqs, $courses, $cadres);
+$hasPromotionLogic = $promoStatus['has_logic'];
+$isQualified = $promoStatus['is_qualified'];
+$missingMoqs = $promoStatus['missing'];
 
-    $missingMoqs = [];
-
-    if ($rankLower === 'sainik') {
-        if (!$hasMoq('btt')) $missingMoqs[] = 'BTT';
-        if (!$hasMoq('arms commando') && !$hasMoq('services commando')) $missingMoqs[] = 'Arms Commando or Services Commando';
-        if (!$hasMoq('pe')) $missingMoqs[] = 'PE';
-    } elseif ($rankLower === 'lance corporal') {
-        if (!$hasMoq('pc')) $missingMoqs[] = 'PC';
-        if (!$hasMoq('pe')) $missingMoqs[] = 'PE';
-    } elseif ($rankLower === 'corporal') {
-        if (!$hasMoq('att')) $missingMoqs[] = 'ATT';
-        if (!$hasMoq('pe')) $missingMoqs[] = 'PE';
-    } elseif ($rankLower === 'sergeant') {
-        if (!$hasMoq('ncoc')) $missingMoqs[] = 'NCOC';
-        if (!$hasMoq('utility course')) $missingMoqs[] = 'Utility Course';
-    } elseif ($rankLower === 'warrant officer') {
-        if (!$hasMoq('clm cadre') && !$hasMoq('jcoc')) $missingMoqs[] = 'CLM Cadre or JCOC';
-    }
-
-    $isQualified = empty($missingMoqs);
-}
 
 $icons = ['facebook'=>'ti ti-brand-facebook','linkedin'=>'ti ti-brand-linkedin','whatsapp'=>'ti ti-brand-whatsapp','twitter'=>'ti ti-brand-x'];
 $display = static fn($value, string $fallback = '-') => ($value !== null && trim((string)$value) !== '') ? htmlspecialchars((string)$value) : $fallback;
@@ -1201,7 +1177,16 @@ $canEdit = Auth::hasAnyPermission([
                 <?php foreach ($moqs as $moq): ?>
                   <div class="course-compact-item">
                     <span class="course-compact-name"><?= htmlspecialchars($moq['moq_name']) ?></span>
-                    <span class="course-compact-result"><?= $display($moq['result'] ?? null) ?></span>
+                    <span class="course-compact-result">
+                      <?php if (!empty($moq['is_bypass'])): ?>
+                        <span class="badge bg-warning text-dark" style="font-size:0.68rem; padding:2px 4px;">Bypassed</span>
+                        <?php if (!empty($moq['result']) && strtolower(trim((string)$moq['result'])) !== 'bypass'): ?>
+                          <span class="ms-1">(<?= htmlspecialchars((string)$moq['result']) ?>)</span>
+                        <?php endif; ?>
+                      <?php else: ?>
+                        <?= $display($moq['result'] ?? null) ?>
+                      <?php endif; ?>
+                    </span>
                   </div>
                 <?php endforeach; ?>
               </div>

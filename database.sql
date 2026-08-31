@@ -167,7 +167,8 @@ CREATE TABLE personnel_notes (
 
 CREATE TABLE moqs (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(150) NOT NULL UNIQUE
+    name VARCHAR(150) NOT NULL UNIQUE,
+    is_bypass TINYINT(1) NOT NULL DEFAULT 0
 );
 
 CREATE TABLE personnel_moqs (
@@ -175,6 +176,7 @@ CREATE TABLE personnel_moqs (
     personnel_id INT NOT NULL,
     moq_id INT NOT NULL,
     result VARCHAR(100),
+    is_bypass TINYINT(1) NOT NULL DEFAULT 0,
     FOREIGN KEY (personnel_id) REFERENCES personnel(id) ON DELETE CASCADE,
     FOREIGN KEY (moq_id) REFERENCES moqs(id)
 );

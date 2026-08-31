@@ -80,14 +80,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($name === '') {
                     throw new Exception('Name cannot be blank.');
                 }
-                LookupManager::add($table, $name);
+                $isBypass = !empty($_POST['is_bypass']);
+                LookupManager::add($table, $name, $isBypass);
             } elseif ($action === 'edit') {
                 Auth::requirePermission('manage_options');
                 $name = trim($_POST['name'] ?? '');
                 if ($name === '') {
                     throw new Exception('Name cannot be blank.');
                 }
-                LookupManager::update($table, (int)$_POST['id'], $name);
+                $isBypass = ($table === 'moqs') ? !empty($_POST['is_bypass']) : null;
+                LookupManager::update($table, (int)$_POST['id'], $name, $isBypass);
             } elseif ($action === 'delete') {
                 Auth::requirePermission('manage_options');
                 LookupManager::delete($table, (int)$_POST['id']);
@@ -332,12 +334,27 @@ if (!$isBulkImport) {
                 <form method="post" class="row g-2 align-items-center">
                   <?= Auth::csrfField() ?>
                   <input type="hidden" name="action" value="add">
-                  <div class="col-md-9">
-                    <input type="text" name="name" class="form-control" placeholder="New <?= strtolower(rtrim($categories[$table],'s')) ?> name" required>
-                  </div>
-                  <div class="col-md-3">
-                    <button class="btn btn-primary w-100"><i class="ti ti-plus me-1"></i>Add</button>
-                  </div>
+                  <?php if ($table === 'moqs'): ?>
+                    <div class="col-md-6">
+                      <input type="text" name="name" class="form-control" placeholder="New <?= strtolower(rtrim($categories[$table],'s')) ?> name" required>
+                    </div>
+                    <div class="col-md-3">
+                      <div class="form-check form-switch mb-0">
+                        <input class="form-check-input" type="checkbox" name="is_bypass" value="1" id="add_moq_bypass">
+                        <label class="form-check-label small" for="add_moq_bypass">Bypass (Auto-qualify)</label>
+                      </div>
+                    </div>
+                    <div class="col-md-3">
+                      <button class="btn btn-primary w-100"><i class="ti ti-plus me-1"></i>Add</button>
+                    </div>
+                  <?php else: ?>
+                    <div class="col-md-9">
+                      <input type="text" name="name" class="form-control" placeholder="New <?= strtolower(rtrim($categories[$table],'s')) ?> name" required>
+                    </div>
+                    <div class="col-md-3">
+                      <button class="btn btn-primary w-100"><i class="ti ti-plus me-1"></i>Add</button>
+                    </div>
+                  <?php endif; ?>
                 </form>
               </div>
             </div>
@@ -348,11 +365,19 @@ if (!$isBulkImport) {
                   <?php foreach ($items as $item): ?>
                     <div class="list-group-item py-3">
                       <div class="d-flex gap-2 align-items-center">
-                        <form method="post" class="flex-grow-1 d-flex gap-2 align-items-center">
+                        <form method="post" class="flex-grow-1 d-flex gap-2 align-items-center flex-wrap">
                           <?= Auth::csrfField() ?>
                           <input type="hidden" name="action" value="edit">
                           <input type="hidden" name="id" value="<?= $item['id'] ?>">
-                          <input type="text" name="name" class="form-control form-control-sm" value="<?= htmlspecialchars($item['name']) ?>">
+                          <input type="text" name="name" class="form-control form-control-sm" style="flex: 1 1 200px;" value="<?= htmlspecialchars($item['name']) ?>">
+                          <?php if ($table === 'moqs'): ?>
+                            <div class="form-check form-switch mb-0 d-flex align-items-center gap-1" title="Enable to treat this MOQ as automatically bypassed/waived for promotion qualification">
+                              <input class="form-check-input" type="checkbox" name="is_bypass" value="1" id="bypass_<?= $item['id'] ?>" <?= !empty($item['is_bypass']) ? 'checked' : '' ?>>
+                              <label class="form-check-label small <?= !empty($item['is_bypass']) ? 'text-warning fw-bold' : 'text-muted' ?>" for="bypass_<?= $item['id'] ?>" style="font-size: 0.78rem;">
+                                Bypass
+                              </label>
+                            </div>
+                          <?php endif; ?>
                           <button class="btn btn-sm btn-outline-primary" type="submit">Save</button>
                         </form>
                         <form method="post" data-confirm="Delete this option?">

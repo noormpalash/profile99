@@ -35,18 +35,28 @@ class LookupManager {
         return $db->query("SELECT * FROM `$table` ORDER BY name")->fetchAll();
     }
 
-    public static function add(string $table, string $name): void {
+    public static function add(string $table, string $name, bool $isBypass = false): void {
         self::validateTable($table);
         $db = getDB();
-        $stmt = $db->prepare("INSERT INTO `$table` (name) VALUES (?)");
-        $stmt->execute([$name]);
+        if ($table === 'moqs') {
+            $stmt = $db->prepare("INSERT INTO `$table` (name, is_bypass) VALUES (?, ?)");
+            $stmt->execute([$name, $isBypass ? 1 : 0]);
+        } else {
+            $stmt = $db->prepare("INSERT INTO `$table` (name) VALUES (?)");
+            $stmt->execute([$name]);
+        }
     }
 
-    public static function update(string $table, int $id, string $name): void {
+    public static function update(string $table, int $id, string $name, ?bool $isBypass = null): void {
         self::validateTable($table);
         $db = getDB();
-        $stmt = $db->prepare("UPDATE `$table` SET name = ? WHERE id = ?");
-        $stmt->execute([$name, $id]);
+        if ($table === 'moqs' && $isBypass !== null) {
+            $stmt = $db->prepare("UPDATE `$table` SET name = ?, is_bypass = ? WHERE id = ?");
+            $stmt->execute([$name, $isBypass ? 1 : 0, $id]);
+        } else {
+            $stmt = $db->prepare("UPDATE `$table` SET name = ? WHERE id = ?");
+            $stmt->execute([$name, $id]);
+        }
     }
 
     // Blocks delete if personnel records still reference this value

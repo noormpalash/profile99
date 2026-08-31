@@ -303,9 +303,9 @@ class Personnel {
                 self::saveCourse($personnelId, $data['course_id'] ?? null, $data['course_result'] ?? null);
             }
             if (isset($data['moq_id']) && is_array($data['moq_id'])) {
-                self::saveMoq($personnelId, $data['moq_id'], $data['moq_result'] ?? []);
+                self::saveMoq($personnelId, $data['moq_id'], $data['moq_result'] ?? [], $data['moq_bypass'] ?? []);
             } else {
-                self::saveMoq($personnelId, $data['moq_id'] ?? null, $data['moq_result'] ?? null);
+                self::saveMoq($personnelId, $data['moq_id'] ?? null, $data['moq_result'] ?? null, $data['moq_bypass'] ?? null);
             }
             self::saveEducation($personnelId, $data['civil_education'] ?? null);
             // Save multiple cadres if provided (cadre_ids[])
@@ -498,9 +498,9 @@ class Personnel {
             if (self::hasPerm('edit_personnel_moqs', $requesterPerms)) {
                 $db->prepare("DELETE FROM personnel_moqs WHERE personnel_id = ?")->execute([$id]);
                 if (isset($data['moq_id']) && is_array($data['moq_id'])) {
-                    self::saveMoq($id, $data['moq_id'], $data['moq_result'] ?? []);
+                    self::saveMoq($id, $data['moq_id'], $data['moq_result'] ?? [], $data['moq_bypass'] ?? []);
                 } else {
-                    self::saveMoq($id, $data['moq_id'] ?? null, $data['moq_result'] ?? null);
+                    self::saveMoq($id, $data['moq_id'] ?? null, $data['moq_result'] ?? null, $data['moq_bypass'] ?? null);
                 }
             }
 
@@ -713,14 +713,15 @@ class Personnel {
         $stmt->execute([$personnelId, $courseId, $result ?: null]);
     }
 
-    private static function saveMoq(int $personnelId, $moqIdOrArray, $resultOrArray = null): void {
+    private static function saveMoq(int $personnelId, $moqIdOrArray, $resultOrArray = null, $bypassOrArray = null): void {
         $db = getDB();
         // support single moq or arrays
         if (is_array($moqIdOrArray)) {
             $moqIds = $moqIdOrArray;
             $results = is_array($resultOrArray) ? $resultOrArray : [];
+            $bypasses = is_array($bypassOrArray) ? $bypassOrArray : [];
             $isSequential = empty($results) || (array_keys($results) === range(0, count($results) - 1));
-            $stmt = $db->prepare("INSERT INTO personnel_moqs (personnel_id, moq_id, result) VALUES (?,?,?)");
+            $stmt = $db->prepare("INSERT INTO personnel_moqs (personnel_id, moq_id, result, is_bypass) VALUES (?,?,?,?)");
             foreach ($moqIds as $idx => $cid) {
                 $cid = (int)$cid;
                 if ($cid <= 0) continue;
@@ -731,17 +732,19 @@ class Personnel {
                 } else {
                     $res = $results[$cid] ?? ($results[$idx] ?? null);
                 }
-                $stmt->execute([$personnelId, $cid, trim($res) ?: null]);
+                $isBypass = !empty($bypasses[$cid]) || !empty($bypasses[$idx]) || (is_string($res) && strtolower(trim($res)) === 'bypass') ? 1 : 0;
+                $stmt->execute([$personnelId, $cid, trim((string)$res) ?: ($isBypass ? 'Bypass' : null), $isBypass]);
             }
             return;
         }
 
         // single
-        $moqId = $moqIdOrArray;
+        $moqId = (int)$moqIdOrArray;
         $result = $resultOrArray;
         if (!$moqId) return;
-        $stmt = $db->prepare("INSERT INTO personnel_moqs (personnel_id, moq_id, result) VALUES (?,?,?)");
-        $stmt->execute([$personnelId, $moqId, $result ?: null]);
+        $isBypass = !empty($bypassOrArray) || (is_string($result) && strtolower(trim($result)) === 'bypass') ? 1 : 0;
+        $stmt = $db->prepare("INSERT INTO personnel_moqs (personnel_id, moq_id, result, is_bypass) VALUES (?,?,?,?)");
+        $stmt->execute([$personnelId, $moqId, $result ?: ($isBypass ? 'Bypass' : null), $isBypass]);
     }
 
     private static function saveCadres(int $personnelId, array $cadreIds): void {
@@ -1195,4 +1198,233 @@ class Personnel {
             return null;
         }
     }
+
+    /**
+     * Check promotion qualification for a given rank and personnel training items.
+     *
+     * @param string|null $rankName
+     * @param array<int, array<string, mixed>> $moqs
+     * @param array<int, array<string, mixed>> $courses
+     * @param array<int, array<string, mixed>> $cadres
+     * @return array{has_logic: bool, is_qualified: bool, canonical_rank: ?string, missing: string[], completed: string[]}
+     */
+    public static function checkPromotionStatus(?string $rankName, array $moqs = [], array $courses = [], array $cadres = []): array {
+        $rawRank = strtolower(trim((string)$rankName));
+        if ($rawRank === '') {
+            return [
+                'has_logic' => false,
+                'is_qualified' => false,
+                'canonical_rank' => null,
+                'missing' => [],
+                'completed' => []
+            ];
+        }
+
+        $canonicalRank = match (true) {
+            in_array($rawRank, ['sainik', 'snk', 'snk(gd)', 'snk (gd)', 'soldier', 'snk.'], true) || str_starts_with($rawRank, 'snk') => 'sainik',
+            in_array($rawRank, ['lance corporal', 'lcpl', 'l/cpl', 'l.cpl', 'l cpl', 'l-cpl'], true) || str_starts_with($rawRank, 'lcpl') || str_starts_with($rawRank, 'l/cpl') => 'lance corporal',
+            in_array($rawRank, ['corporal', 'cpl', 'cpl.'], true) || str_starts_with($rawRank, 'cpl') => 'corporal',
+            in_array($rawRank, ['sergeant', 'sgt', 'sgt.'], true) || str_starts_with($rawRank, 'sgt') => 'sergeant',
+            in_array($rawRank, ['warrant officer', 'wo', 'wo.', 'swo', 'senior warrant officer', 'mwo', 'master warrant officer'], true) || $rawRank === 'wo' || str_starts_with($rawRank, 'wo ') || str_starts_with($rawRank, 'swo') || str_starts_with($rawRank, 'mwo') => 'warrant officer',
+            default => null,
+        };
+
+        if ($canonicalRank === null) {
+            return [
+                'has_logic' => false,
+                'is_qualified' => false,
+                'canonical_rank' => null,
+                'missing' => [],
+                'completed' => []
+            ];
+        }
+
+        $isFailed = static function (?string $result): bool {
+            if ($result === null) {
+                return false;
+            }
+            $r = strtolower(trim($result));
+            return in_array($r, ['fail', 'failed', 'f', 'unsuccessful', 'not qualified', 'disqualified', 'dropped'], true);
+        };
+
+        $validEntries = [];
+        $validCourses = [];
+        foreach ($moqs as $m) {
+            $name = trim((string)($m['moq_name'] ?? $m['name'] ?? ''));
+            $res = $m['result'] ?? null;
+            $isBypassed = !empty($m['is_bypass']) || (is_string($res) && strtolower(trim($res)) === 'bypass');
+            if ($name !== '' && ($isBypassed || !$isFailed($res))) {
+                $validEntries[] = strtolower($name);
+            }
+        }
+        foreach ($courses as $c) {
+            $name = trim((string)($c['course_name'] ?? $c['name'] ?? ''));
+            $res = $c['result'] ?? null;
+            if ($name !== '' && !$isFailed($res)) {
+                $lowerName = strtolower($name);
+                $validEntries[] = $lowerName;
+                $validCourses[] = $lowerName;
+            }
+        }
+        foreach ($cadres as $cd) {
+            $name = trim((string)($cd['cadre_name'] ?? $cd['name'] ?? ''));
+            if ($name !== '') {
+                $validEntries[] = strtolower($name);
+            }
+        }
+
+        // Bypassed MOQs automatically count as completed/waived for all personnel
+        $bypassedMoqs = self::getBypassedMoqs();
+        foreach ($bypassedMoqs as $bMoqName) {
+            $bName = strtolower(trim((string)$bMoqName));
+            if ($bName !== '') {
+                $validEntries[] = $bName;
+            }
+        }
+
+        $hasItem = static function (array $patterns) use ($validEntries): bool {
+            foreach ($validEntries as $entry) {
+                foreach ($patterns as $p) {
+                    $patternLower = strtolower($p);
+                    if ($entry === $patternLower) {
+                        return true;
+                    }
+                    if (preg_match('/\b' . preg_quote($patternLower, '/') . '\b/i', $entry) === 1) {
+                        return true;
+                    }
+                    if (str_contains($entry, $patternLower)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        };
+
+        $missing = [];
+        $completed = [];
+
+        if ($canonicalRank === 'sainik') {
+            if ($hasItem(['btt', 'basic trade training'])) {
+                $completed[] = 'BTT';
+            } else {
+                $missing[] = 'BTT';
+            }
+
+            if ($hasItem(['arms commando', 'services commando', 'commando'])) {
+                $completed[] = 'Arms Commando or Services Commando';
+            } else {
+                $missing[] = 'Arms Commando or Services Commando';
+            }
+
+            if ($hasItem(['pe', 'promotion exam', 'promotion examination', 'physical efficiency'])) {
+                $completed[] = 'PE';
+            } else {
+                $missing[] = 'PE';
+            }
+        } elseif ($canonicalRank === 'lance corporal') {
+            if ($hasItem(['pc', 'potential cadre'])) {
+                $completed[] = 'PC';
+            } else {
+                $missing[] = 'PC';
+            }
+
+            if ($hasItem(['pe', 'promotion exam', 'promotion examination', 'physical efficiency'])) {
+                $completed[] = 'PE';
+            } else {
+                $missing[] = 'PE';
+            }
+        } elseif ($canonicalRank === 'corporal') {
+            if ($hasItem(['att', 'advance trade training', 'advanced trade training'])) {
+                $completed[] = 'ATT';
+            } else {
+                $missing[] = 'ATT';
+            }
+
+            if ($hasItem(['pe', 'promotion exam', 'promotion examination', 'physical efficiency'])) {
+                $completed[] = 'PE';
+            } else {
+                $missing[] = 'PE';
+            }
+        } elseif ($canonicalRank === 'sergeant') {
+            $ncocMatches = ['ncoc', 'non-commissioned officers course', 'non commissioned officers course'];
+            $hasNcoc = $hasItem($ncocMatches);
+
+            if ($hasNcoc) {
+                $completed[] = 'NCOC';
+            } else {
+                $missing[] = 'NCOC';
+            }
+
+            // SGT with any course does not need MOQ Utility Course; also explicit Utility Course/MOQ accepted
+            $hasUtility = $hasItem(['utility course', 'utility']);
+
+            $hasNonNcocCourse = false;
+            foreach ($validCourses as $cName) {
+                $isNcoc = false;
+                foreach ($ncocMatches as $p) {
+                    if ($cName === $p || str_contains($cName, $p)) {
+                        $isNcoc = true;
+                        break;
+                    }
+                }
+                if (!$isNcoc) {
+                    $hasNonNcocCourse = true;
+                    break;
+                }
+            }
+
+            $ncocInCourses = false;
+            foreach ($validCourses as $cName) {
+                foreach ($ncocMatches as $p) {
+                    if ($cName === $p || str_contains($cName, $p)) {
+                        $ncocInCourses = true;
+                        break 2;
+                    }
+                }
+            }
+
+            $hasCourseForUtility = $hasUtility || $hasNonNcocCourse || (!$ncocInCourses && !empty($validCourses));
+
+            if ($hasCourseForUtility) {
+                $completed[] = 'Utility Course';
+            } else {
+                $missing[] = 'Utility Course';
+            }
+        } elseif ($canonicalRank === 'warrant officer') {
+            if ($hasItem(['clm cadre', 'clm', 'jcoc', 'junior command', 'junior commissioned'])) {
+                $completed[] = 'CLM Cadre or JCOC';
+            } else {
+                $missing[] = 'CLM Cadre or JCOC';
+            }
+        }
+
+        return [
+            'has_logic' => true,
+            'is_qualified' => empty($missing),
+            'canonical_rank' => $canonicalRank,
+            'missing' => $missing,
+            'completed' => $completed
+        ];
+    }
+
+    /**
+     * Get names of all MOQs that have bypass enabled.
+     *
+     * @return string[]
+     */
+    public static function getBypassedMoqs(): array {
+        static $cached = null;
+        if ($cached !== null) {
+            return $cached;
+        }
+        $db = getDB();
+        try {
+            $cached = $db->query("SELECT name FROM moqs WHERE is_bypass = 1")->fetchAll(\PDO::FETCH_COLUMN) ?: [];
+        } catch (\Throwable $e) {
+            $cached = [];
+        }
+        return $cached;
+    }
 }
+
+

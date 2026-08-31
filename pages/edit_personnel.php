@@ -357,8 +357,10 @@ foreach ($socialLinks as $link) {
               <?php
               $existingMoqs = Personnel::getMoqs($id);
               $existingMoqMap = [];
+              $existingMoqBypassMap = [];
               foreach ($existingMoqs as $em) {
                 $existingMoqMap[$em['moq_id']] = $em['result'] ?? '';
+                $existingMoqBypassMap[$em['moq_id']] = !empty($em['is_bypass']);
               }
               ?>
               <div id="moqs_edit_list" class="border rounded p-2 bg-white personnel-option-list">
@@ -367,6 +369,7 @@ foreach ($socialLinks as $link) {
                   $mid = $moqItem['id'];
                   $isAddedMoq = isset($existingMoqMap[$mid]);
                   $resultValMoq = $isAddedMoq ? $existingMoqMap[$mid] : '';
+                  $isBypassedMoq = $isAddedMoq ? !empty($existingMoqBypassMap[$mid]) : false;
                   ?>
                   <div class="moq-item border-bottom py-2 px-1">
                     <div class="d-flex align-items-center justify-content-between">
@@ -385,11 +388,17 @@ foreach ($socialLinks as $link) {
                     </div>
                     <div class="moq-result-container <?= $isAddedMoq ? '' : 'd-none' ?> mt-2 ms-4"
                       id="result_box_moq_edit_<?= $mid ?>">
-                      <div class="input-group input-group-sm">
-                        <span class="input-group-text bg-light text-muted small">Result</span>
-                        <input type="hidden" name="moq_id[]" value="<?= $mid ?>" class="moq-id-input" <?= $isAddedMoq ? '' : 'disabled' ?>>
-                        <input type="text" name="moq_result[<?= $mid ?>]" class="form-control moq-result-input"
-                          placeholder="e.g. Passed, Grade A" value="<?= htmlspecialchars($resultValMoq) ?>" <?= $isAddedMoq ? '' : 'disabled' ?>>
+                      <div class="d-flex align-items-center gap-2">
+                        <div class="input-group input-group-sm flex-grow-1">
+                          <span class="input-group-text bg-light text-muted small">Result</span>
+                          <input type="hidden" name="moq_id[]" value="<?= $mid ?>" class="moq-id-input" <?= $isAddedMoq ? '' : 'disabled' ?>>
+                          <input type="text" name="moq_result[<?= $mid ?>]" class="form-control moq-result-input"
+                            placeholder="e.g. Passed, Grade A" value="<?= htmlspecialchars($resultValMoq) ?>" <?= $isAddedMoq ? '' : 'disabled' ?>>
+                        </div>
+                        <div class="form-check form-switch mb-0" title="Bypass this MOQ for this personnel (auto-qualify for promotion)">
+                          <input class="form-check-input moq-bypass-input" type="checkbox" name="moq_bypass[<?= $mid ?>]" value="1" id="moq_bypass_edit_<?= $mid ?>" <?= $isBypassedMoq ? 'checked' : '' ?> <?= $isAddedMoq ? '' : 'disabled' ?>>
+                          <label class="form-check-label small text-muted" for="moq_bypass_edit_<?= $mid ?>" style="font-size:0.78rem;">Bypass</label>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -790,6 +799,7 @@ foreach ($socialLinks as $link) {
       const resBox = item.querySelector('.moq-result-container');
       const idInput = item.querySelector('.moq-id-input');
       const resInput = item.querySelector('.moq-result-input');
+      const bypassInput = item.querySelector('.moq-bypass-input');
 
       if (!chk || !btn || !resBox) return;
 
@@ -801,6 +811,7 @@ foreach ($socialLinks as $link) {
           btn.textContent = '✓ Added';
           resBox.classList.remove('d-none');
           if (idInput) idInput.removeAttribute('disabled');
+          if (bypassInput) bypassInput.removeAttribute('disabled');
           if (resInput) {
             resInput.removeAttribute('disabled');
             resInput.focus();
@@ -812,6 +823,7 @@ foreach ($socialLinks as $link) {
           resBox.classList.add('d-none');
           if (idInput) idInput.setAttribute('disabled', 'disabled');
           if (resInput) resInput.setAttribute('disabled', 'disabled');
+          if (bypassInput) bypassInput.setAttribute('disabled', 'disabled');
         }
       }
 

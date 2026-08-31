@@ -52,48 +52,32 @@ $moqQualifiedCount = 0;
 $moqNotQualifiedCount = 0;
 
 $personnelRanks = $db->query("SELECT p.id, r.name AS rank_name FROM personnel p JOIN ranks r ON p.rank_id = r.id")->fetchAll(PDO::FETCH_ASSOC);
-$allMoqs = $db->query("SELECT pm.personnel_id, m.name AS moq_name FROM personnel_moqs pm JOIN moqs m ON pm.moq_id = m.id")->fetchAll(PDO::FETCH_ASSOC);
+$allMoqs = $db->query("SELECT pm.personnel_id, m.name AS moq_name, pm.result, pm.is_bypass FROM personnel_moqs pm JOIN moqs m ON pm.moq_id = m.id")->fetchAll(PDO::FETCH_ASSOC);
+$allCourses = $db->query("SELECT pc.personnel_id, c.name AS course_name, pc.result FROM personnel_courses pc JOIN courses c ON pc.course_id = c.id")->fetchAll(PDO::FETCH_ASSOC);
+$allCadres = $db->query("SELECT pc.personnel_id, c.name AS cadre_name FROM personnel_cadres pc JOIN cadres c ON pc.cadre_id = c.id")->fetchAll(PDO::FETCH_ASSOC);
 
 $personnelMoqMap = [];
 foreach ($allMoqs as $row) {
-  $personnelMoqMap[$row['personnel_id']][] = strtolower(trim($row['moq_name']));
+  $personnelMoqMap[$row['personnel_id']][] = $row;
+}
+$personnelCourseMap = [];
+foreach ($allCourses as $row) {
+  $personnelCourseMap[$row['personnel_id']][] = $row;
+}
+$personnelCadreMap = [];
+foreach ($allCadres as $row) {
+  $personnelCadreMap[$row['personnel_id']][] = $row;
 }
 
 foreach ($personnelRanks as $p) {
-  $rankLower = strtolower(trim($p['rank_name']));
-  if (in_array($rankLower, ['sainik', 'lance corporal', 'corporal', 'sergeant', 'warrant officer'])) {
-    $pMoqs = $personnelMoqMap[$p['id']] ?? [];
-    $hasMoq = fn($name) => in_array(strtolower($name), $pMoqs);
+  $pId = (int)$p['id'];
+  $pMoqs = $personnelMoqMap[$pId] ?? [];
+  $pCourses = $personnelCourseMap[$pId] ?? [];
+  $pCadres = $personnelCadreMap[$pId] ?? [];
 
-    $missingMoqs = [];
-    if ($rankLower === 'sainik') {
-      if (!$hasMoq('btt'))
-        $missingMoqs[] = 'BTT';
-      if (!$hasMoq('arms commando') && !$hasMoq('services commando'))
-        $missingMoqs[] = 'Arms Commando or Services Commando';
-      if (!$hasMoq('pe'))
-        $missingMoqs[] = 'PE';
-    } elseif ($rankLower === 'lance corporal') {
-      if (!$hasMoq('pc'))
-        $missingMoqs[] = 'PC';
-      if (!$hasMoq('pe'))
-        $missingMoqs[] = 'PE';
-    } elseif ($rankLower === 'corporal') {
-      if (!$hasMoq('att'))
-        $missingMoqs[] = 'ATT';
-      if (!$hasMoq('pe'))
-        $missingMoqs[] = 'PE';
-    } elseif ($rankLower === 'sergeant') {
-      if (!$hasMoq('ncoc'))
-        $missingMoqs[] = 'NCOC';
-      if (!$hasMoq('utility course'))
-        $missingMoqs[] = 'Utility Course';
-    } elseif ($rankLower === 'warrant officer') {
-      if (!$hasMoq('clm cadre') && !$hasMoq('jcoc'))
-        $missingMoqs[] = 'CLM Cadre or JCOC';
-    }
-
-    if (empty($missingMoqs)) {
+  $status = Personnel::checkPromotionStatus($p['rank_name'] ?? '', $pMoqs, $pCourses, $pCadres);
+  if ($status['has_logic']) {
+    if ($status['is_qualified']) {
       $moqQualifiedCount++;
     } else {
       $moqNotQualifiedCount++;
