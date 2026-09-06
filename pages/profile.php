@@ -674,7 +674,10 @@ $canEdit = Auth::hasAnyPermission([
   }
   @media print {
     @page { margin: 12mm; size: A4; }
-    html, body, .main-content, .container-fluid, .bio-print-container, div[class^="print-sec-"] { display: block !important; }
+    html, body, .main-content, .container-fluid, .bio-print-container { display: block !important; }
+    .bio-print-container .print-hidden,
+    div[class^="print-sec-"].print-hidden,
+    .print-hidden { display: none !important; }
     body { background: #fff !important; margin: 0; padding: 0; color: #000; }
     #sidebar, .navbar, .page-header, .profile-page, .no-print { display: none !important; }
     .main-content, .container-fluid { margin: 0 !important; padding: 0 !important; width: 100% !important; max-width: 100% !important; }
@@ -1220,7 +1223,7 @@ $canEdit = Auth::hasAnyPermission([
   </div>
 
   <div class="print-sec-personal">
-    <div class="bio-section-title avoid-break">1. Personal & Service Details</div>
+    <div class="bio-section-title avoid-break">Personal & Service Details</div>
     <table class="bio-table avoid-break">
       <tr>
         <td class="lbl">Name</td>
@@ -1266,7 +1269,7 @@ $canEdit = Auth::hasAnyPermission([
   </div>
 
   <div class="print-sec-contact">
-    <div class="bio-section-title avoid-break">2. Contact & Address</div>
+    <div class="bio-section-title avoid-break">Contact & Address</div>
     <table class="bio-table avoid-break">
       <tr>
         <td class="lbl">Mobile</td>
@@ -1288,7 +1291,7 @@ $canEdit = Auth::hasAnyPermission([
   </div>
 
   <div class="print-sec-family">
-    <div class="bio-section-title avoid-break">3. Family Information</div>
+    <div class="bio-section-title avoid-break">Family Information</div>
     <table class="bio-table avoid-break">
       <tr>
         <td class="lbl">Father's Name</td>
@@ -1335,7 +1338,7 @@ $canEdit = Auth::hasAnyPermission([
   </div>
 
   <div class="print-sec-health">
-    <div class="bio-section-title avoid-break">4. Health Details</div>
+    <div class="bio-section-title avoid-break">Health Details</div>
     <table class="bio-table avoid-break">
       <tr>
         <td class="lbl">Height</td>
@@ -1353,7 +1356,7 @@ $canEdit = Auth::hasAnyPermission([
   </div>
 
   <div class="print-sec-training page-break">
-    <div class="bio-section-title avoid-break">5. Training & Qualifications</div>
+    <div class="bio-section-title avoid-break">Training & Qualifications</div>
     <table class="bio-table avoid-break">
       <tr>
         <td class="lbl">Cadres</td>
@@ -1371,7 +1374,7 @@ $canEdit = Auth::hasAnyPermission([
   </div>
 
   <div class="print-sec-perf">
-    <div class="bio-section-title avoid-break">6. Performance & Checks</div>
+    <div class="bio-section-title avoid-break">Performance & Checks</div>
     <table class="bio-table avoid-break">
       <tr>
         <td class="lbl">IPFT (1st)</td>
@@ -1402,7 +1405,7 @@ $canEdit = Auth::hasAnyPermission([
   </div>
 
   <div class="print-sec-special">
-    <div class="bio-section-title avoid-break">7. Special Note</div>
+    <div class="bio-section-title avoid-break">Special Note</div>
     <table class="bio-table avoid-break">
       <tr>
         <td class="lbl">Special Note</td>
@@ -1413,7 +1416,7 @@ $canEdit = Auth::hasAnyPermission([
 
   <?php if (!empty($currentYearLeaves)): ?>
   <div class="print-sec-leave">
-    <div class="bio-section-title avoid-break">8. Leave Records (<?= date('Y') ?>)</div>
+    <div class="bio-section-title avoid-break">Leave Records (<?= date('Y') ?>)</div>
     <table class="bio-table bio-table-list avoid-break">
       <tr>
         <th>From</th>
@@ -1435,7 +1438,7 @@ $canEdit = Auth::hasAnyPermission([
 
   <?php if ($socialLinks): ?>
   <div class="print-sec-social">
-    <div class="bio-section-title avoid-break">9. Social Links</div>
+    <div class="bio-section-title avoid-break">Social Links</div>
     <table class="bio-table avoid-break">
       <?php foreach ($socialLinks as $link): 
           $displayUrl = $link['url'];
@@ -1470,6 +1473,13 @@ $canEdit = Auth::hasAnyPermission([
 </div>
 
 <script>
+window.toggleAllPrintSections = function(checked) {
+  ['ps_contact', 'ps_family', 'ps_health', 'ps_training', 'ps_perf', 'ps_special', 'ps_leave', 'ps_social'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.checked = checked;
+  });
+};
+
 function printBioData() {
   Swal.fire({
     title: 'Print Options',
@@ -1486,41 +1496,47 @@ function printBioData() {
           <input class="form-check-input" type="checkbox" id="ps_photo" checked>
           <label class="form-check-label" for="ps_photo">Include Photo</label>
         </div>
-        <label class="form-label fw-bold">Sections to Print</label>
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <label class="form-label fw-bold mb-0">Sections to Print</label>
+          <div>
+            <button type="button" class="btn btn-link p-0 text-decoration-none me-2" onclick="toggleAllPrintSections(true)" style="font-size: 0.8rem;">Select All</button>
+            <button type="button" class="btn btn-link p-0 text-decoration-none text-muted" onclick="toggleAllPrintSections(false)" style="font-size: 0.8rem;">Deselect All</button>
+          </div>
+        </div>
         <div class="form-check mb-1">
           <input class="form-check-input" type="checkbox" id="ps_contact" checked>
-          <label class="form-check-label" for="ps_contact">2. Contact & Address</label>
+          <label class="form-check-label" for="ps_contact">Contact & Address</label>
         </div>
         <div class="form-check mb-1">
           <input class="form-check-input" type="checkbox" id="ps_family" checked>
-          <label class="form-check-label" for="ps_family">3. Family Information</label>
+          <label class="form-check-label" for="ps_family">Family Information</label>
         </div>
         <div class="form-check mb-1">
           <input class="form-check-input" type="checkbox" id="ps_health" checked>
-          <label class="form-check-label" for="ps_health">4. Health Details</label>
+          <label class="form-check-label" for="ps_health">Health Details</label>
         </div>
         <div class="form-check mb-1">
           <input class="form-check-input" type="checkbox" id="ps_training" checked>
-          <label class="form-check-label" for="ps_training">5. Training & Qualifications</label>
+          <label class="form-check-label" for="ps_training">Training & Qualifications</label>
         </div>
         <div class="form-check mb-1">
           <input class="form-check-input" type="checkbox" id="ps_perf" checked>
-          <label class="form-check-label" for="ps_perf">6. Performance & Checks</label>
+          <label class="form-check-label" for="ps_perf">Performance & Checks</label>
         </div>
         <div class="form-check mb-1">
           <input class="form-check-input" type="checkbox" id="ps_special" checked>
-          <label class="form-check-label" for="ps_special">7. Special Note</label>
+          <label class="form-check-label" for="ps_special">Special Note</label>
         </div>
-        <?php if ($leaves && count($leaves) > 0): ?>
+        <?php if (!empty($currentYearLeaves)): ?>
         <div class="form-check mb-1">
           <input class="form-check-input" type="checkbox" id="ps_leave" checked>
-          <label class="form-check-label" for="ps_leave">8. Leave Records</label>
+          <label class="form-check-label" for="ps_leave">Leave Records</label>
         </div>
         <?php endif; ?>
         <?php if ($socialLinks): ?>
         <div class="form-check mb-1">
           <input class="form-check-input" type="checkbox" id="ps_social" checked>
-          <label class="form-check-label" for="ps_social">9. Social Links</label>
+          <label class="form-check-label" for="ps_social">Social Links</label>
         </div>
         <?php endif; ?>
       </div>
@@ -1561,26 +1577,53 @@ function executePrint(options) {
   }
   
   let css = '@page { size: ' + options.pageSize + '; margin: 12mm; }';
-  if (!options.photo) css += ' @media print { .bio-photo-box img { display: none !important; } }';
-  if (!options.contact) css += ' @media print { .print-sec-contact { display: none !important; } }';
-  if (!options.family) css += ' @media print { .print-sec-family { display: none !important; } }';
-  if (!options.health) css += ' @media print { .print-sec-health { display: none !important; } }';
-  if (!options.training) css += ' @media print { .print-sec-training { display: none !important; } }';
-  if (!options.perf) css += ' @media print { .print-sec-perf { display: none !important; } }';
-  if (!options.special) css += ' @media print { .print-sec-special { display: none !important; } }';
-  if (!options.leave) css += ' @media print { .print-sec-leave { display: none !important; } }';
-  if (!options.social) css += ' @media print { .print-sec-social { display: none !important; } }';
+  if (!options.photo) css += ' @media print { .bio-photo-box, .bio-photo-placeholder { display: none !important; } }';
+  if (!options.contact) css += ' @media print { div.print-sec-contact, .print-sec-contact { display: none !important; } }';
+  if (!options.family) css += ' @media print { div.print-sec-family, .print-sec-family { display: none !important; } }';
+  if (!options.health) css += ' @media print { div.print-sec-health, .print-sec-health { display: none !important; } }';
+  if (!options.training) css += ' @media print { div.print-sec-training, .print-sec-training { display: none !important; } }';
+  if (!options.perf) css += ' @media print { div.print-sec-perf, .print-sec-perf { display: none !important; } }';
+  if (!options.special) css += ' @media print { div.print-sec-special, .print-sec-special { display: none !important; } }';
+  if (!options.leave) css += ' @media print { div.print-sec-leave, .print-sec-leave { display: none !important; } }';
+  if (!options.social) css += ' @media print { div.print-sec-social, .print-sec-social { display: none !important; } }';
   
   styleTag.innerHTML = css;
+
+  const secMap = {
+    photo: ['.bio-photo-box', '.bio-photo-placeholder'],
+    contact: ['.print-sec-contact'],
+    family: ['.print-sec-family'],
+    health: ['.print-sec-health'],
+    training: ['.print-sec-training'],
+    perf: ['.print-sec-perf'],
+    special: ['.print-sec-special'],
+    leave: ['.print-sec-leave'],
+    social: ['.print-sec-social']
+  };
+
+  Object.entries(secMap).forEach(([key, selectors]) => {
+    const shouldShow = !!options[key];
+    selectors.forEach(sel => {
+      document.querySelectorAll(sel).forEach(el => {
+        el.classList.toggle('print-hidden', !shouldShow);
+      });
+    });
+  });
   
   var originalTitle = document.title;
   document.title = "<?= addslashes(htmlspecialchars($person['personal_number'] . ' ' . ($person['rank_name'] ?? '') . ' ' . $person['name'])) ?>";
   
+  const cleanup = function() {
+    document.title = originalTitle;
+    document.querySelectorAll('.print-hidden').forEach(el => el.classList.remove('print-hidden'));
+    window.removeEventListener('afterprint', cleanup);
+  };
+
+  window.addEventListener('afterprint', cleanup);
+
   window.print();
   
-  setTimeout(function() {
-    document.title = originalTitle;
-  }, 1000);
+  setTimeout(cleanup, 1000);
 }
 </script>
 

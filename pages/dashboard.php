@@ -153,8 +153,98 @@ foreach ($statusCounts as $sc) {
   }
 }
 
+// ── IPFT State Data ──
+$ipftPersonnel = $db->query("
+    SELECT 
+        p.id, p.personal_number, p.name, p.photo_path, p.status,
+        r.name AS rank_name,
+        COALESCE(ps.ipft_1st, '') AS ipft_1st,
+        COALESCE(ps.ipft_2nd, '') AS ipft_2nd,
+        ps.ret,
+        ps.speed_march
+    FROM personnel p
+    JOIN ranks r ON p.rank_id = r.id
+    LEFT JOIN personnel_service ps ON p.id = ps.personnel_id
+    WHERE p.status = 'active'
+")->fetchAll(PDO::FETCH_ASSOC);
 
+$ipftCategories = ['OFFR', 'SWO', 'WO', 'SGT', 'CPL', 'LCPL', 'SNK'];
+$categoryLabels = [
+  'OFFR' => 'Officers',
+  'SWO' => 'Senior Warrant Officers',
+  'WO' => 'Warrant Officers',
+  'SGT' => 'Sergeants',
+  'CPL' => 'Corporals',
+  'LCPL' => 'Lance Corporals',
+  'SNK' => 'Soldiers'
+];
 
+$ipftCategoryData = [];
+foreach ($ipftCategories as $cat) {
+    $ipftCategoryData[$cat] = [
+        'total' => 0,
+        '1st' => ['pass' => 0, 'fail' => 0, 'na' => 0, 'pending' => 0],
+        '2nd' => ['pass' => 0, 'fail' => 0, 'na' => 0, 'pending' => 0],
+    ];
+}
+
+$ipftSummary = [
+    '1st' => ['pass' => 0, 'fail' => 0, 'na' => 0, 'pending' => 0, 'total' => 0],
+    '2nd' => ['pass' => 0, 'fail' => 0, 'na' => 0, 'pending' => 0, 'total' => 0],
+    'both_pass' => 0,
+    'total_active' => 0
+];
+
+foreach ($ipftPersonnel as $p) {
+    $pCat = null;
+    foreach ($rankMap as $cat => $ranks) {
+        if (in_array($p['rank_name'], $ranks, true)) {
+            $pCat = $cat;
+            break;
+        }
+    }
+    // NC(E) and NC(U) are non-combatant support trades without IPFT requirement
+    if (!$pCat || !in_array($pCat, $ipftCategories, true)) {
+        continue;
+    }
+
+    $ipftCategoryData[$pCat]['total']++;
+    $ipftSummary['total_active']++;
+
+    // 1st Annual
+    $res1 = strtoupper(trim((string)$p['ipft_1st']));
+    $type1 = match($res1) {
+        'PASS' => 'pass',
+        'FAIL' => 'fail',
+        'NOT ATTENDING' => 'na',
+        default => 'pending'
+    };
+    $ipftSummary['1st'][$type1]++;
+    $ipftSummary['1st']['total']++;
+    $ipftCategoryData[$pCat]['1st'][$type1]++;
+
+    // 2nd Annual
+    $res2 = strtoupper(trim((string)$p['ipft_2nd']));
+    $type2 = match($res2) {
+        'PASS' => 'pass',
+        'FAIL' => 'fail',
+        'NOT ATTENDING' => 'na',
+        default => 'pending'
+    };
+    $ipftSummary['2nd'][$type2]++;
+    $ipftSummary['2nd']['total']++;
+    $ipftCategoryData[$pCat]['2nd'][$type2]++;
+
+    if ($res1 === 'PASS' && $res2 === 'PASS') {
+        $ipftSummary['both_pass']++;
+    }
+    if ($res1 === 'PASS' || $res2 === 'PASS') {
+        $ipftSummary['any_pass'] = ($ipftSummary['any_pass'] ?? 0) + 1;
+    }
+}
+
+$passRate1 = $ipftSummary['1st']['total'] > 0 ? round(($ipftSummary['1st']['pass'] / $ipftSummary['1st']['total']) * 100) : 0;
+$passRate2 = $ipftSummary['2nd']['total'] > 0 ? round(($ipftSummary['2nd']['pass'] / $ipftSummary['2nd']['total']) * 100) : 0;
 
 // ── Currently On Leave ──
 $currentlyOnLeave = $db->query("SELECT p.id, p.name, p.personal_number, p.photo_path, r.name AS rank_name, pl.leave_type, pl.from_date, pl.to_date FROM personnel p JOIN personnel_leaves pl ON p.id = pl.personnel_id JOIN ranks r ON p.rank_id = r.id WHERE CURRENT_DATE >= pl.from_date AND CURRENT_DATE <= pl.to_date ORDER BY pl.to_date LIMIT 5")->fetchAll();
@@ -218,6 +308,178 @@ $allOnLeave = $db->query("SELECT p.id, p.name, p.personal_number, p.photo_path, 
     border-color: transparent;
   }
 
+  .sc-ipft {
+    background: linear-gradient(135deg, #0284c7, #38bdf8);
+    border-color: transparent;
+    cursor: pointer;
+  }
+
+  /* ── IPFT State Section (Compact) ── */
+  .ipft-summary-tile {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 9px 12px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.02);
+    height: 100%;
+    transition: all 0.2s ease;
+  }
+  .ipft-summary-tile:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 4px 10px -2px rgba(15, 23, 42, 0.05);
+  }
+
+  .ipft-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(255px, 1fr));
+    gap: 10px;
+  }
+  .ipft-cat-card {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 10px 12px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+    overflow: hidden;
+  }
+  .ipft-cat-card:hover {
+    transform: translateY(-2px);
+    border-color: #cbd5e1;
+    box-shadow: 0 6px 14px -3px rgba(15, 23, 42, 0.07);
+  }
+  .ipft-cat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #f1f5f9;
+    margin-bottom: 7px;
+  }
+  .ipft-cat-title {
+    font-size: 0.88rem;
+    font-weight: 800;
+    color: #1e293b;
+    letter-spacing: -0.01em;
+  }
+  .ipft-cat-sub {
+    font-size: 0.68rem;
+    color: #64748b;
+    font-weight: 500;
+  }
+  .ipft-cat-total {
+    background: #f8fafc;
+    color: #334155;
+    border: 1px solid #e2e8f0;
+    font-weight: 700;
+    font-size: 0.68rem;
+    padding: 2px 6px;
+    border-radius: 5px;
+  }
+
+  .ipft-cycle-row {
+    margin-bottom: 5px;
+    transition: opacity 0.2s ease, max-height 0.25s ease;
+  }
+  .ipft-cycle-row.hidden-cycle {
+    display: none !important;
+  }
+  .ipft-cycle-tag {
+    font-size: 0.66rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #475569;
+    background: #f1f5f9;
+    padding: 2px 5px;
+    border-radius: 4px;
+    min-width: 26px;
+    text-align: center;
+    line-height: 1.2;
+  }
+  .ipft-pills-wrap {
+    display: flex;
+    gap: 3px;
+    flex-wrap: wrap;
+  }
+  .ipft-pill {
+    flex: 1 1 calc(25% - 3px);
+    min-width: 44px;
+    padding: 2px 4px;
+    border-radius: 6px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    border: 1px solid transparent;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    text-decoration: none;
+    line-height: 1.2;
+  }
+  .ipft-pill:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+  }
+  .ipft-pill-pass {
+    background: #ecfdf5;
+    color: #059669;
+    border-color: #a7f3d0;
+  }
+  .ipft-pill-pass:hover {
+    background: #d1fae5;
+    color: #047857;
+  }
+  .ipft-pill-fail {
+    background: #fef2f2;
+    color: #dc2626;
+    border-color: #fecaca;
+  }
+  .ipft-pill-fail:hover {
+    background: #fee2e2;
+    color: #b91c1c;
+  }
+  .ipft-pill-na {
+    background: #fffbeb;
+    color: #d97706;
+    border-color: #fde68a;
+  }
+  .ipft-pill-na:hover {
+    background: #fef3c7;
+    color: #b45309;
+  }
+  .ipft-pill-pend {
+    background: #f8fafc;
+    color: #64748b;
+    border-color: #e2e8f0;
+  }
+  .ipft-pill-pend:hover {
+    background: #f1f5f9;
+    color: #475569;
+  }
+  .pill-dot {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    display: inline-block;
+    background: currentColor;
+  }
+
+  .ipft-filter-btn {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+  }
+  .ipft-filter-btn.active {
+    background: #0284c7 !important;
+    border-color: #0284c7 !important;
+    color: #ffffff !important;
+  }
 
   .stat-card:hover {
     transform: translateY(-4px);
@@ -608,7 +870,7 @@ $allOnLeave = $db->query("SELECT p.id, p.name, p.personal_number, p.photo_path, 
     </div>
 
     <!-- ══════ STAT CARDS ══════ -->
-    <div class="row g-3 mb-4 row-cols-2 row-cols-md-3 row-cols-xl-5">
+    <div class="row g-3 mb-4 row-cols-2 row-cols-md-3 row-cols-xl-6">
       <div class="col">
         <div class="stat-card sc-total animate-in delay-1">
           <div class="stat-value"><?= sprintf('%02d', $totalPersonnel) ?></div>
@@ -642,6 +904,13 @@ $allOnLeave = $db->query("SELECT p.id, p.name, p.personal_number, p.photo_path, 
           <div class="stat-value"><?= sprintf('%02d', $moqNotQualifiedCount) ?></div>
           <div class="stat-label" title="MOQ NOT QUAL">MOQ NOT QUAL</div>
           <i class="ti ti-alert-triangle stat-icon"></i>
+        </div>
+      </div>
+      <div class="col">
+        <div class="stat-card sc-ipft animate-in delay-6" style="cursor: pointer;" onclick="document.getElementById('ipftSection').scrollIntoView({behavior:'smooth'})" title="Click to view IPFT State">
+          <div class="stat-value"><?= sprintf('%02d', $ipftSummary['any_pass'] ?? $ipftSummary['1st']['pass']) ?></div>
+          <div class="stat-label" title="IPFT PASS">IPFT PASS</div>
+          <i class="ti ti-activity-heartbeat stat-icon"></i>
         </div>
       </div>
     </div>
@@ -823,6 +1092,214 @@ $allOnLeave = $db->query("SELECT p.id, p.name, p.personal_number, p.photo_path, 
       </div>
     </div>
 
+    <!-- ══════ IPFT STATE ══════ -->
+    <div class="row g-3 mb-4">
+      <div class="col-12" id="ipftSection">
+        <div class="chart-card animate-in delay-3" style="border: none; box-shadow: none; background: transparent; padding: 0;">
+          <div class="chart-card-header px-1 pb-2 pt-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-2">
+              <h6 style="font-size:1.05rem; letter-spacing:-0.02em; margin-bottom: 0;">
+                <i class="ti ti-activity-heartbeat me-2" style="color:#0284c7"></i>IPFT STATE
+              </h6>
+              <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill small px-2 py-0 no-print" style="font-size: 0.7rem;">Card View</span>
+            </div>
+            <div class="d-flex align-items-center gap-2 no-print">
+              <div class="btn-group btn-group-sm" role="group" aria-label="IPFT Cycle Filter">
+                <button type="button" class="btn btn-outline-secondary ipft-filter-btn active" data-cycle="all">All</button>
+                <button type="button" class="btn btn-outline-secondary ipft-filter-btn" data-cycle="1st">1st Annual</button>
+                <button type="button" class="btn btn-outline-secondary ipft-filter-btn" data-cycle="2nd">2nd Annual</button>
+              </div>
+              <?php if (Auth::hasPermission('print_records')): ?>
+              <button type="button" class="btn-print no-print py-1 px-2" style="font-size: 0.78rem;" onclick="printSection('ipftSection', 'IPFT State')"><i class="ti ti-printer"></i> Print</button>
+              <?php endif; ?>
+            </div>
+          </div>
+
+          <!-- Compact Summary Tiles -->
+          <div class="ipft-compact-summary mb-2 no-print">
+            <div class="row g-2">
+              <div class="col-12 col-md-4">
+                <div class="ipft-summary-tile">
+                  <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="fw-bold text-dark" style="font-size: 0.78rem;"><i class="ti ti-medal text-success me-1"></i>1st Annual</span>
+                    <span class="badge bg-success-subtle text-success border border-success-subtle py-0 px-2" style="font-size: 0.7rem;"><?= $passRate1 ?>% Pass</span>
+                  </div>
+                  <div class="d-flex align-items-center justify-content-between">
+                    <div class="d-flex gap-1">
+                      <button type="button" class="ipft-pill ipft-pill-pass py-0 px-2" data-annual="1st" data-status="PASS" data-category="ALL" title="1st Pass">P: <?= $ipftSummary['1st']['pass'] ?></button>
+                      <button type="button" class="ipft-pill ipft-pill-fail py-0 px-2" data-annual="1st" data-status="FAIL" data-category="ALL" title="1st Fail">F: <?= $ipftSummary['1st']['fail'] ?></button>
+                      <button type="button" class="ipft-pill ipft-pill-na py-0 px-2" data-annual="1st" data-status="NOT ATTENDING" data-category="ALL" title="1st N/A">NA: <?= $ipftSummary['1st']['na'] ?></button>
+                      <button type="button" class="ipft-pill ipft-pill-pend py-0 px-2" data-annual="1st" data-status="PENDING" data-category="ALL" title="1st Pending">Pend: <?= $ipftSummary['1st']['pending'] ?></button>
+                    </div>
+                    <span class="text-muted small" style="font-size: 0.72rem;"><?= $ipftSummary['1st']['total'] ?> Total</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-12 col-md-4">
+                <div class="ipft-summary-tile">
+                  <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="fw-bold text-dark" style="font-size: 0.78rem;"><i class="ti ti-medal text-primary me-1"></i>2nd Annual</span>
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle py-0 px-2" style="font-size: 0.7rem;"><?= $passRate2 ?>% Pass</span>
+                  </div>
+                  <div class="d-flex align-items-center justify-content-between">
+                    <div class="d-flex gap-1">
+                      <button type="button" class="ipft-pill ipft-pill-pass py-0 px-2" data-annual="2nd" data-status="PASS" data-category="ALL" title="2nd Pass">P: <?= $ipftSummary['2nd']['pass'] ?></button>
+                      <button type="button" class="ipft-pill ipft-pill-fail py-0 px-2" data-annual="2nd" data-status="FAIL" data-category="ALL" title="2nd Fail">F: <?= $ipftSummary['2nd']['fail'] ?></button>
+                      <button type="button" class="ipft-pill ipft-pill-na py-0 px-2" data-annual="2nd" data-status="NOT ATTENDING" data-category="ALL" title="2nd N/A">NA: <?= $ipftSummary['2nd']['na'] ?></button>
+                      <button type="button" class="ipft-pill ipft-pill-pend py-0 px-2" data-annual="2nd" data-status="PENDING" data-category="ALL" title="2nd Pending">Pend: <?= $ipftSummary['2nd']['pending'] ?></button>
+                    </div>
+                    <span class="text-muted small" style="font-size: 0.72rem;"><?= $ipftSummary['2nd']['total'] ?> Total</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-12 col-md-4">
+                <div class="ipft-summary-tile d-flex align-items-center justify-content-between">
+                  <div>
+                    <div class="fw-bold text-dark" style="font-size: 0.78rem;"><i class="ti ti-shield-check text-dark me-1"></i>Dual-Cycle Pass</div>
+                    <div class="text-muted" style="font-size: 0.7rem;">Cleared Both Cycles</div>
+                  </div>
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="fs-6 fw-bold text-dark"><?= sprintf('%02d', $ipftSummary['both_pass']) ?></span>
+                    <button type="button" class="btn btn-sm btn-outline-dark py-0 px-2 ipft-chip" style="font-size: 0.7rem;" data-annual="ALL" data-status="PASS" data-category="ALL">View</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Compact Category Card View Grid -->
+          <div class="ipft-card-grid no-print">
+            <?php foreach ($ipftCategoryData as $cat => $cdata): 
+              $catTotal = $cdata['total'];
+              $catPass1 = $cdata['1st']['pass'];
+              $pRate1 = $catTotal > 0 ? round(($catPass1 / $catTotal) * 100) : 0;
+              $catPass2 = $cdata['2nd']['pass'];
+              $pRate2 = $catTotal > 0 ? round(($catPass2 / $catTotal) * 100) : 0;
+            ?>
+            <div class="ipft-cat-card">
+              <div class="ipft-cat-header">
+                <div class="d-flex align-items-center gap-1">
+                  <span class="ipft-cat-title"><?= htmlspecialchars($cat) ?></span>
+                  <span class="ipft-cat-sub"><?= htmlspecialchars($categoryLabels[$cat] ?? '') ?></span>
+                </div>
+                <span class="ipft-cat-total"><?= sprintf('%02d', $catTotal) ?></span>
+              </div>
+
+              <!-- 1st Annual Row -->
+              <div class="ipft-cycle-row ipft-row-1st">
+                <div class="d-flex align-items-center justify-content-between mb-1">
+                  <span class="ipft-cycle-tag">1st</span>
+                  <div class="ipft-pills-wrap flex-grow-1 ms-1">
+                    <button type="button" class="ipft-pill ipft-pill-pass" data-annual="1st" data-status="PASS" data-category="<?= htmlspecialchars($cat) ?>" title="1st Pass">P: <?= $cdata['1st']['pass'] ?></button>
+                    <button type="button" class="ipft-pill ipft-pill-fail" data-annual="1st" data-status="FAIL" data-category="<?= htmlspecialchars($cat) ?>" title="1st Fail">F: <?= $cdata['1st']['fail'] ?></button>
+                    <button type="button" class="ipft-pill ipft-pill-na" data-annual="1st" data-status="NOT ATTENDING" data-category="<?= htmlspecialchars($cat) ?>" title="1st N/A">NA: <?= $cdata['1st']['na'] ?></button>
+                    <button type="button" class="ipft-pill ipft-pill-pend" data-annual="1st" data-status="PENDING" data-category="<?= htmlspecialchars($cat) ?>" title="1st Pending">Pend: <?= $cdata['1st']['pending'] ?></button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 2nd Annual Row -->
+              <div class="ipft-cycle-row ipft-row-2nd">
+                <div class="d-flex align-items-center justify-content-between mb-1">
+                  <span class="ipft-cycle-tag">2nd</span>
+                  <div class="ipft-pills-wrap flex-grow-1 ms-1">
+                    <button type="button" class="ipft-pill ipft-pill-pass" data-annual="2nd" data-status="PASS" data-category="<?= htmlspecialchars($cat) ?>" title="2nd Pass">P: <?= $cdata['2nd']['pass'] ?></button>
+                    <button type="button" class="ipft-pill ipft-pill-fail" data-annual="2nd" data-status="FAIL" data-category="<?= htmlspecialchars($cat) ?>" title="2nd Fail">F: <?= $cdata['2nd']['fail'] ?></button>
+                    <button type="button" class="ipft-pill ipft-pill-na" data-annual="2nd" data-status="NOT ATTENDING" data-category="<?= htmlspecialchars($cat) ?>" title="2nd N/A">NA: <?= $cdata['2nd']['na'] ?></button>
+                    <button type="button" class="ipft-pill ipft-pill-pend" data-annual="2nd" data-status="PENDING" data-category="<?= htmlspecialchars($cat) ?>" title="2nd Pending">Pend: <?= $cdata['2nd']['pending'] ?></button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Slim Progress Bar -->
+              <div class="progress mt-1" style="height: 3px; border-radius: 999px; background: #f1f5f9;">
+                <div class="progress-bar bg-success" style="width: <?= $pRate1 ?>%"></div>
+                <div class="progress-bar bg-danger" style="width: <?= $catTotal > 0 ? round(($cdata['1st']['fail'] / $catTotal) * 100) : 0 ?>%"></div>
+                <div class="progress-bar bg-warning" style="width: <?= $catTotal > 0 ? round(($cdata['1st']['na'] / $catTotal) * 100) : 0 ?>%"></div>
+              </div>
+            </div>
+            <?php endforeach; ?>
+          </div>
+
+          <!-- Print Only Table -->
+          <div class="print-only d-none">
+            <div class="premium-table-container">
+              <div class="premium-table-inner">
+                <table class="premium-table align-middle">
+                  <thead>
+                    <tr>
+                      <th rowspan="2" style="width: 130px; vertical-align: middle;">Category</th>
+                      <th rowspan="2" style="width: 70px; vertical-align: middle; text-align: center;">Total</th>
+                      <th colspan="4" class="text-center" style="border-bottom: 1px solid #000;">1st Annual IPFT</th>
+                      <th colspan="4" class="text-center" style="border-bottom: 1px solid #000;">2nd Annual IPFT</th>
+                    </tr>
+                    <tr>
+                      <th style="text-align: center;">Pass</th>
+                      <th style="text-align: center;">Fail</th>
+                      <th style="text-align: center;">N/A</th>
+                      <th style="text-align: center;">Pend</th>
+                      <th style="text-align: center;">Pass</th>
+                      <th style="text-align: center;">Fail</th>
+                      <th style="text-align: center;">N/A</th>
+                      <th style="text-align: center;">Pend</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <?php foreach ($ipftCategoryData as $cat => $cd): ?>
+                    <tr>
+                      <td class="fw-bold"><?= htmlspecialchars($cat) ?></td>
+                      <td class="text-center fw-bold"><?= sprintf('%02d', $cd['total']) ?></td>
+                      <td class="text-center"><?= sprintf('%02d', $cd['1st']['pass']) ?></td>
+                      <td class="text-center"><?= sprintf('%02d', $cd['1st']['fail']) ?></td>
+                      <td class="text-center"><?= sprintf('%02d', $cd['1st']['na']) ?></td>
+                      <td class="text-center"><?= sprintf('%02d', $cd['1st']['pending']) ?></td>
+                      <td class="text-center"><?= sprintf('%02d', $cd['2nd']['pass']) ?></td>
+                      <td class="text-center"><?= sprintf('%02d', $cd['2nd']['fail']) ?></td>
+                      <td class="text-center"><?= sprintf('%02d', $cd['2nd']['na']) ?></td>
+                      <td class="text-center"><?= sprintf('%02d', $cd['2nd']['pending']) ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                    <tr class="total-row">
+                      <td class="fw-bold">Total</td>
+                      <td class="text-center fw-bold"><?= sprintf('%02d', $ipftSummary['total_active']) ?></td>
+                      <td class="text-center fw-bold"><?= sprintf('%02d', $ipftSummary['1st']['pass']) ?></td>
+                      <td class="text-center fw-bold"><?= sprintf('%02d', $ipftSummary['1st']['fail']) ?></td>
+                      <td class="text-center fw-bold"><?= sprintf('%02d', $ipftSummary['1st']['na']) ?></td>
+                      <td class="text-center fw-bold"><?= sprintf('%02d', $ipftSummary['1st']['pending']) ?></td>
+                      <td class="text-center fw-bold"><?= sprintf('%02d', $ipftSummary['2nd']['pass']) ?></td>
+                      <td class="text-center fw-bold"><?= sprintf('%02d', $ipftSummary['2nd']['fail']) ?></td>
+                      <td class="text-center fw-bold"><?= sprintf('%02d', $ipftSummary['2nd']['na']) ?></td>
+                      <td class="text-center fw-bold"><?= sprintf('%02d', $ipftSummary['2nd']['pending']) ?></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- IPFT List Modal -->
+    <div class="modal fade" id="ipftListModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+          <div class="modal-header border-bottom-0 pb-0">
+            <h5 class="modal-title fw-bold" id="ipftListTitle">IPFT Personnel List</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div id="ipftListContent" class="text-center">
+              <div class="spinner-border text-primary my-4" role="status"><span class="visually-hidden">Loading...</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
 
 
     <!-- ══════ TABLES ══════ -->
@@ -961,6 +1438,55 @@ $allOnLeave = $db->query("SELECT p.id, p.name, p.personal_number, p.photo_path, 
         .catch(err => {
           document.getElementById('absentListContent').innerHTML = '<div class="alert alert-danger">Error loading list</div>';
         });
+    }
+
+    // IPFT pill / chip modal handler
+    const ipftBtn = e.target.closest('.ipft-pill, .ipft-chip');
+    if (ipftBtn) {
+      e.preventDefault();
+      const annual = ipftBtn.getAttribute('data-annual') || 'ALL';
+      const status = ipftBtn.getAttribute('data-status') || 'ALL';
+      const category = ipftBtn.getAttribute('data-category') || 'ALL';
+
+      const annualText = annual === '1st' ? '1st Annual' : (annual === '2nd' ? '2nd Annual' : 'Annual');
+      const catText = category === 'ALL' ? 'All Personnel' : category;
+      document.getElementById('ipftListTitle').textContent = `IPFT (${annualText}) - ${catText} [${status}]`;
+      document.getElementById('ipftListContent').innerHTML = '<div class="spinner-border text-primary my-4" role="status"><span class="visually-hidden">Loading...</span></div>';
+
+      const modal = new bootstrap.Modal(document.getElementById('ipftListModal'));
+      modal.show();
+
+      fetch('ajax_ipft_list.php?annual=' + encodeURIComponent(annual) + '&status=' + encodeURIComponent(status) + '&category=' + encodeURIComponent(category))
+        .then(response => response.text())
+        .then(html => {
+          document.getElementById('ipftListContent').innerHTML = html;
+        })
+        .catch(err => {
+          document.getElementById('ipftListContent').innerHTML = '<div class="alert alert-danger">Error loading list</div>';
+        });
+    }
+
+    // IPFT cycle filter handler
+    const filterBtn = e.target.closest('.ipft-filter-btn');
+    if (filterBtn) {
+      e.preventDefault();
+      document.querySelectorAll('.ipft-filter-btn').forEach(b => b.classList.remove('active'));
+      filterBtn.classList.add('active');
+      const cycle = filterBtn.getAttribute('data-cycle');
+      
+      const row1st = document.querySelectorAll('.ipft-row-1st');
+      const row2nd = document.querySelectorAll('.ipft-row-2nd');
+      
+      if (cycle === '1st') {
+        row1st.forEach(r => r.classList.remove('hidden-cycle'));
+        row2nd.forEach(r => r.classList.add('hidden-cycle'));
+      } else if (cycle === '2nd') {
+        row1st.forEach(r => r.classList.add('hidden-cycle'));
+        row2nd.forEach(r => r.classList.remove('hidden-cycle'));
+      } else {
+        row1st.forEach(r => r.classList.remove('hidden-cycle'));
+        row2nd.forEach(r => r.classList.remove('hidden-cycle'));
+      }
     }
   });
 

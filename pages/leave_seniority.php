@@ -576,6 +576,34 @@ foreach ($seniorityList as $row) {
                   $days = (int) ($row['last_leave_days'] ?? 0);
                   $daysSince = $row['days_since_last_leave'];
                   $isCurOnLeave = !empty($row['is_currently_on_leave']);
+
+                  $elapsedFormatted = '';
+                  if ($hasLeave && $daysSince !== null && $daysSince > 0) {
+                    try {
+                      $fromDt = new DateTime(date('Y-m-d', strtotime($row['last_leave_to'])));
+                      $todayDt = new DateTime('today');
+                      $diff = $fromDt->diff($todayDt);
+                      $diffMonths = ($diff->y * 12) + $diff->m;
+                      $diffDays = $diff->d;
+                      if ($diffMonths > 0 && $diffDays > 0) {
+                        $elapsedFormatted = "{$diffMonths}m {$diffDays} d";
+                      } elseif ($diffMonths > 0) {
+                        $elapsedFormatted = "{$diffMonths}m";
+                      } else {
+                        $elapsedFormatted = "{$diffDays} d";
+                      }
+                    } catch (\Throwable $e) {
+                      $diffMonths = intdiv((int) $daysSince, 30);
+                      $diffDays = (int) $daysSince % 30;
+                      if ($diffMonths > 0 && $diffDays > 0) {
+                        $elapsedFormatted = "{$diffMonths}m {$diffDays} d";
+                      } elseif ($diffMonths > 0) {
+                        $elapsedFormatted = "{$diffMonths}m";
+                      } else {
+                        $elapsedFormatted = "{$diffDays} d";
+                      }
+                    }
+                  }
                   ?>
                   <tr>
                     <!-- Seniority SL -->
@@ -642,8 +670,8 @@ foreach ($seniorityList as $row) {
                           <span class="badge bg-info text-dark no-print">Ends Today</span>
                           <span class="print-text-only">Ends Today</span>
                         <?php else: ?>
-                          <span class="text-secondary small no-print"><?= (int) $daysSince ?> d ago</span>
-                          <span class="print-text-only"><?= (int) $daysSince ?> days ago</span>
+                          <span class="text-secondary small no-print" title="<?= (int) $daysSince ?> days ago"><?= htmlspecialchars($elapsedFormatted) ?></span>
+                          <span class="print-text-only"><?= htmlspecialchars($elapsedFormatted) ?></span>
                         <?php endif; ?>
                       <?php else: ?>
                         <span class="badge bg-success-subtle text-success border border-success-subtle no-print">Never</span>
