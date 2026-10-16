@@ -60,6 +60,7 @@ CREATE TABLE personnel (
     po VARCHAR(255),
     ps VARCHAR(255),
     status ENUM('active','on_leave','training','punishment','retired') DEFAULT 'active',
+    moq_na TINYINT(1) NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (rank_id) REFERENCES ranks(id),
     FOREIGN KEY (unit_id) REFERENCES units(id),
@@ -97,6 +98,7 @@ CREATE TABLE personnel_cadres (
 CREATE TABLE personnel_service (
     id INT AUTO_INCREMENT PRIMARY KEY,
     personnel_id INT NOT NULL,
+    service_year INT NULL,
     admission_date DATE,
     retirement_date DATE,
     un_mission VARCHAR(255),
@@ -109,6 +111,25 @@ CREATE TABLE personnel_service (
     cycle_2 VARCHAR(100),
     cycle_3 VARCHAR(100),
     cycle_4 VARCHAR(100),
+    FOREIGN KEY (personnel_id) REFERENCES personnel(id) ON DELETE CASCADE
+);
+
+-- ---------- YEARLY PERFORMANCE & PLAN RECORDS ----------
+CREATE TABLE personnel_yearly_records (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    personnel_id INT NOT NULL,
+    record_year INT NOT NULL,
+    ipft_1st VARCHAR(255) NULL,
+    ipft_2nd VARCHAR(255) NULL,
+    ret VARCHAR(255) NULL,
+    speed_march VARCHAR(255) NULL,
+    cycle_1 VARCHAR(100) NULL,
+    cycle_2 VARCHAR(100) NULL,
+    cycle_3 VARCHAR(100) NULL,
+    cycle_4 VARCHAR(100) NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_personnel_year (personnel_id, record_year),
     FOREIGN KEY (personnel_id) REFERENCES personnel(id) ON DELETE CASCADE
 );
 

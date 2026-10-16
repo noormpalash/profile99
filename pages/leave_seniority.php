@@ -19,6 +19,12 @@ $unitId = trim((string) ($_GET['unit_id'] ?? ''));
 $statusFilter = trim((string) ($_GET['status'] ?? ''));
 $currentlyOnLeave = !empty($_GET['currently_on_leave']);
 $withoutWeekend = !empty($_GET['without_weekend']);
+$rawFm = trim((string) ($_GET['family_member'] ?? ''));
+$familyMember = match (strtolower($rawFm)) {
+  'yes', 'family member', 'family_member', '1' => 'Yes',
+  'no', 'not family member', 'not_family_member', '0' => 'No',
+  default => ''
+};
 
 // Lookup data
 $platoons = LookupManager::getAll('platoons');
@@ -57,6 +63,13 @@ if ($statusFilter !== '') {
 if ($currentlyOnLeave) {
   $where[] = "EXISTS (SELECT 1 FROM personnel_leaves cur_l WHERE cur_l.personnel_id = p.id AND CURRENT_DATE >= cur_l.from_date AND CURRENT_DATE <= cur_l.to_date)";
 }
+if ($familyMember !== '') {
+  if ($familyMember === 'Yes') {
+    $where[] = "pf.family_member = 'Yes'";
+  } elseif ($familyMember === 'No') {
+    $where[] = "(pf.family_member = 'No' OR pf.family_member IS NULL)";
+  }
+}
 
 $whereSql = !empty($where) ? 'WHERE ' . implode(' AND ', $where) : '';
 
@@ -68,6 +81,7 @@ $sql = "
 SELECT 
     p.id, p.personal_number, p.name, p.photo_path, p.status,
     r.name AS rank_name, u.name AS unit_name, pl.name AS platoon_name,
+    pf.family_member,
     latest_leave.leave_type AS last_leave_type,
     latest_leave.from_date AS last_leave_from,
     latest_leave.to_date AS last_leave_to,
@@ -78,6 +92,7 @@ FROM personnel p
 LEFT JOIN ranks r ON p.rank_id = r.id
 LEFT JOIN units u ON p.unit_id = u.id
 LEFT JOIN platoons pl ON p.platoon_id = pl.id
+LEFT JOIN personnel_family pf ON p.id = pf.personnel_id
 LEFT JOIN (
     SELECT pl1.personnel_id, pl1.leave_type, pl1.from_date, pl1.to_date, pl1.total_days
     FROM personnel_leaves pl1
@@ -451,7 +466,7 @@ foreach ($seniorityList as $row) {
       <form method="get" class="mb-0">
         <!-- Main Form Inputs -->
         <div class="row g-3">
-          <div class="col-lg-3 col-md-6">
+          <div class="col-xl-3 col-lg-4 col-md-6">
             <label class="form-label mb-1"><i class="ti ti-search me-1 text-muted"></i>Search</label>
             <div class="input-group">
               <span class="input-group-text bg-light text-muted border-end-0"
@@ -462,7 +477,7 @@ foreach ($seniorityList as $row) {
                 placeholder="Name or personal no..." style="border-top-left-radius: 0; border-bottom-left-radius: 0;">
             </div>
           </div>
-          <div class="col-lg-3 col-md-6 col-sm-6">
+          <div class="col-xl-2 col-lg-4 col-md-6 col-sm-6">
             <label class="form-label mb-1"><i class="ti ti-users me-1 text-muted"></i>Platoon</label>
             <select name="platoon_id" class="form-select">
               <option value="">All Platoons</option>
@@ -473,7 +488,7 @@ foreach ($seniorityList as $row) {
               <?php endforeach; ?>
             </select>
           </div>
-          <div class="col-lg-3 col-md-6 col-sm-6">
+          <div class="col-xl-2 col-lg-4 col-md-6 col-sm-6">
             <label class="form-label mb-1"><i class="ti ti-military-rank me-1 text-muted"></i>Rank</label>
             <select name="rank_id" class="form-select">
               <option value="">All Ranks</option>
@@ -484,7 +499,7 @@ foreach ($seniorityList as $row) {
               <?php endforeach; ?>
             </select>
           </div>
-          <div class="col-lg-3 col-md-6 col-sm-6">
+          <div class="col-xl-2 col-lg-4 col-md-6 col-sm-6">
             <label class="form-label mb-1"><i class="ti ti-building me-1 text-muted"></i>Unit</label>
             <select name="unit_id" class="form-select">
               <option value="">All Units</option>
@@ -493,6 +508,14 @@ foreach ($seniorityList as $row) {
                   <?= htmlspecialchars($u['name']) ?>
                 </option>
               <?php endforeach; ?>
+            </select>
+          </div>
+          <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6">
+            <label class="form-label mb-1"><i class="ti ti-users-group me-1 text-muted"></i>Family Member</label>
+            <select name="family_member" class="form-select">
+              <option value="">All</option>
+              <option value="Yes" <?= $familyMember === 'Yes' ? 'selected' : '' ?>>Family Member</option>
+              <option value="No" <?= $familyMember === 'No' ? 'selected' : '' ?>>Not Family Member</option>
             </select>
           </div>
         </div>
@@ -523,7 +546,7 @@ foreach ($seniorityList as $row) {
 
           <div class="d-flex align-items-center gap-2 ms-auto">
             <?php
-            $hasActiveFilters = ($q !== '' || $platoonId !== '' || $rankId !== '' || $unitId !== '' || $statusFilter !== '' || $currentlyOnLeave || $withoutWeekend);
+            $hasActiveFilters = ($q !== '' || $platoonId !== '' || $rankId !== '' || $unitId !== '' || $statusFilter !== '' || $currentlyOnLeave || $withoutWeekend || $familyMember !== '');
             if ($hasActiveFilters):
               ?>
               <a href="leave_seniority.php"
@@ -638,7 +661,10 @@ foreach ($seniorityList as $row) {
                         target="_blank">
                         <?= htmlspecialchars($row['name']) ?>
                       </a>
-                      <span class="print-text-only"><?= htmlspecialchars($row['name']) ?></span>
+                      <?php if (($row['family_member'] ?? '') === 'Yes'): ?>
+                        <span class="badge bg-info-subtle text-info border border-info-subtle no-print ms-1" style="font-size:0.65rem;" title="Family Member">FM</span>
+                      <?php endif; ?>
+                      <span class="print-text-only"><?= htmlspecialchars($row['name']) ?><?= ($row['family_member'] ?? '') === 'Yes' ? ' (FM)' : '' ?></span>
                     </td>
 
                     <!-- Last Leave Period -->

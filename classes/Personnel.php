@@ -10,7 +10,7 @@ class Personnel {
     // ---- List / Search ----
     public static function all(): array {
         $db = getDB();
-        return $db->query("SELECT p.*, r.name AS rank_name, u.name AS unit_name, b.name AS blood_group_name, a.name AS appointment_name, c.name AS cadre_name, pl.name AS platoon_name, pf.family_member, pf.living_status,
+        return $db->query("SELECT p.*, r.name AS rank_name, u.name AS unit_name, b.name AS blood_group_name, a.name AS appointment_name, c.name AS cadre_name, pl.name AS platoon_name, pf.family_member, pf.living_status, pe.civil_education,
                             (SELECT from_date FROM personnel_leaves WHERE personnel_id = p.id AND CURRENT_DATE >= from_date AND CURRENT_DATE <= to_date LIMIT 1) AS current_leave_from,
                             (SELECT to_date FROM personnel_leaves WHERE personnel_id = p.id AND CURRENT_DATE >= from_date AND CURRENT_DATE <= to_date LIMIT 1) AS current_leave_to
                             FROM personnel p
@@ -21,12 +21,13 @@ class Personnel {
                             LEFT JOIN cadres c ON p.cadre_id = c.id
                             LEFT JOIN platoons pl ON p.platoon_id = pl.id
                             LEFT JOIN personnel_family pf ON p.id = pf.personnel_id
+                            LEFT JOIN personnel_education pe ON p.id = pe.personnel_id
                             ORDER BY p.name")->fetchAll();
     }
 
     public static function filter(array $filters): array {
         $db = getDB();
-        $sql = "SELECT p.*, r.name AS rank_name, u.name AS unit_name, b.name AS blood_group_name, a.name AS appointment_name, c.name AS cadre_name, pl.name AS platoon_name, pf.family_member, pf.living_status,
+        $sql = "SELECT p.*, r.name AS rank_name, u.name AS unit_name, b.name AS blood_group_name, a.name AS appointment_name, c.name AS cadre_name, pl.name AS platoon_name, pf.family_member, pf.living_status, pe.civil_education,
                             (SELECT from_date FROM personnel_leaves WHERE personnel_id = p.id AND CURRENT_DATE >= from_date AND CURRENT_DATE <= to_date LIMIT 1) AS current_leave_from,
                             (SELECT to_date FROM personnel_leaves WHERE personnel_id = p.id AND CURRENT_DATE >= from_date AND CURRENT_DATE <= to_date LIMIT 1) AS current_leave_to
             FROM personnel p
@@ -37,6 +38,7 @@ class Personnel {
             LEFT JOIN cadres c ON p.cadre_id = c.id
             LEFT JOIN platoons pl ON p.platoon_id = pl.id
             LEFT JOIN personnel_family pf ON p.id = pf.personnel_id
+            LEFT JOIN personnel_education pe ON p.id = pe.personnel_id
             WHERE 1=1";
         $params = [];
 
@@ -126,10 +128,14 @@ class Personnel {
         }
 
         $moqStatus = trim((string)($filters['moq_status'] ?? ''));
-        if ($moqStatus === 'qualified') {
-            $sql .= " AND p.id IN (SELECT personnel_id FROM personnel_moqs)";
-        } elseif ($moqStatus === 'not_qualified') {
-            $sql .= " AND p.id NOT IN (SELECT personnel_id FROM personnel_moqs)";
+        if ($moqStatus === 'qualified' || $moqStatus === 'not_qualified' || $moqStatus === 'not_applicable' || $moqStatus === 'na') {
+            $targetIds = self::getPersonnelIdsByMoqStatus($moqStatus);
+            if (empty($targetIds)) {
+                $sql .= " AND 1=0";
+            } else {
+                $inClause = implode(',', array_map('intval', $targetIds));
+                $sql .= " AND p.id IN ($inClause)";
+            }
         }
 
         $cadreId = (int)($filters['cadre_id'] ?? 0);
@@ -145,6 +151,23 @@ class Personnel {
             $params[] = $familyMember;
         }
 
+        $civilEducation = trim((string)($filters['civil_education'] ?? ''));
+        if ($civilEducation !== '') {
+            if (is_numeric($civilEducation)) {
+                $sql .= " AND (pe.civil_education IN (SELECT name FROM civil_educations WHERE id = ?) OR pe.civil_education = ?)";
+                $params[] = (int)$civilEducation;
+                $params[] = $civilEducation;
+            } else {
+                if (strcasecmp($civilEducation, 'HSC') === 0) {
+                    $sql .= " AND (pe.civil_education = ? OR pe.civil_education IS NULL OR pe.civil_education = '')";
+                    $params[] = $civilEducation;
+                } else {
+                    $sql .= " AND pe.civil_education = ?";
+                    $params[] = $civilEducation;
+                }
+            }
+        }
+
         $sql .= " ORDER BY p.name";
         $stmt = $db->prepare($sql);
         $stmt->execute($params);
@@ -153,7 +176,7 @@ class Personnel {
 
     public static function find(int $id): ?array {
         $db = getDB();
-        $stmt = $db->prepare("SELECT p.*, r.name AS rank_name, u.name AS unit_name, c.name AS cadre_name, pl.name AS platoon_name, b.name AS blood_group_name, a.name AS appointment_name,
+        $stmt = $db->prepare("SELECT p.*, r.name AS rank_name, u.name AS unit_name, c.name AS cadre_name, pl.name AS platoon_name, b.name AS blood_group_name, a.name AS appointment_name, pe.civil_education,
                        (SELECT leave_type FROM personnel_leaves WHERE personnel_id = p.id AND CURRENT_DATE >= from_date AND CURRENT_DATE <= to_date LIMIT 1) AS current_leave_type
                        FROM personnel p
                        LEFT JOIN ranks r ON p.rank_id = r.id
@@ -162,6 +185,7 @@ class Personnel {
                        LEFT JOIN platoons pl ON p.platoon_id = pl.id
                        LEFT JOIN blood_groups b ON p.blood_group_id = b.id
                        LEFT JOIN appointments a ON p.appointment_id = a.id
+                       LEFT JOIN personnel_education pe ON p.id = pe.personnel_id
                        WHERE p.id = ?");
         $stmt->execute([$id]);
         $row = $stmt->fetch();
@@ -170,12 +194,13 @@ class Personnel {
 
     public static function search(string $term): array {
         $db = getDB();
-        $stmt = $db->prepare("SELECT p.*, r.name AS rank_name, u.name AS unit_name, a.name AS appointment_name, pf.family_member, pf.living_status
+        $stmt = $db->prepare("SELECT p.*, r.name AS rank_name, u.name AS unit_name, a.name AS appointment_name, pf.family_member, pf.living_status, pe.civil_education
                        FROM personnel p
                        LEFT JOIN ranks r ON p.rank_id = r.id
                        LEFT JOIN units u ON p.unit_id = u.id
                        LEFT JOIN appointments a ON p.appointment_id = a.id
                        LEFT JOIN personnel_family pf ON p.id = pf.personnel_id
+                       LEFT JOIN personnel_education pe ON p.id = pe.personnel_id
                        WHERE p.name LIKE ? OR p.personal_number LIKE ? OR a.name LIKE ?
                        ORDER BY p.name");
         $like = "%$term%";
@@ -283,16 +308,18 @@ class Personnel {
             $poVal = trim((string)($data['po'] ?? '')) ?: null;
             $psVal = trim((string)($data['ps'] ?? '')) ?: null;
 
+            $moqNa = (!empty($data['moq_not_applicable']) || !empty($data['moq_na'])) ? 1 : 0;
             $stmt = $db->prepare("INSERT INTO personnel
-                (personal_number, name, nid, photo_path, rank_id, unit_id, cadre_id, platoon_id, blood_group_id, appointment_id, batch, mobile_number, address, detailed_address, vill, po, ps, status)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
+                (personal_number, name, nid, photo_path, rank_id, unit_id, cadre_id, platoon_id, blood_group_id, appointment_id, batch, mobile_number, address, detailed_address, vill, po, ps, status, moq_na)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
             $stmt->execute([
                 $data['personal_number'], $data['name'], trim((string)($data['nid'] ?? '')) ?: null, $photoPath,
                 empty($data['rank_id']) ? null : $data['rank_id'], empty($data['unit_id']) ? null : $data['unit_id'], empty($data['cadre_id']) ? null : $data['cadre_id'],
                 empty($data['platoon_id']) ? null : $data['platoon_id'], empty($data['blood_group_id']) ? null : $data['blood_group_id'], empty($data['appointment_id']) ? null : $data['appointment_id'],
                 trim((string)($data['batch'] ?? '')) ?: null,
                 $data['mobile_number'] ?? null, $addressVal, $detailedAddressVal, $villVal, $poVal, $psVal,
-                $data['status'] ?? 'active'
+                $data['status'] ?? 'active',
+                $moqNa
             ]);
             $personnelId = (int)$db->lastInsertId();
 
@@ -317,7 +344,8 @@ class Personnel {
                     self::saveCadres($personnelId, [(int)$data['cadre_id']]);
                 }
             }
-            self::saveService($personnelId, $data['admission_date'] ?? null, $data['retirement_date'] ?? null, $data['un_mission'] ?? null, $data['punishment_note'] ?? null, $data['ipft_1st'] ?? null, $data['ipft_2nd'] ?? null, $data['ret'] ?? null, $data['speed_march'] ?? null, $data['cycle_1'] ?? null, $data['cycle_2'] ?? null, $data['cycle_3'] ?? null, $data['cycle_4'] ?? null);
+            $targetYear = !empty($data['record_year']) ? (int)$data['record_year'] : (!empty($data['service_year']) ? (int)$data['service_year'] : (int)date('Y'));
+            self::saveService($personnelId, $data['admission_date'] ?? null, $data['retirement_date'] ?? null, $data['un_mission'] ?? null, $data['punishment_note'] ?? null, $data['ipft_1st'] ?? null, $data['ipft_2nd'] ?? null, $data['ret'] ?? null, $data['speed_march'] ?? null, $data['cycle_1'] ?? null, $data['cycle_2'] ?? null, $data['cycle_3'] ?? null, $data['cycle_4'] ?? null, $targetYear);
             self::saveFamily(
                 $personnelId,
                 $data['birthdate'] ?? null,
@@ -496,6 +524,9 @@ class Personnel {
             }
 
             if (self::hasPerm('edit_personnel_moqs', $requesterPerms)) {
+                $moqNa = (!empty($data['moq_not_applicable']) || !empty($data['moq_na'])) ? 1 : 0;
+                $db->prepare("UPDATE personnel SET moq_na = ? WHERE id = ?")->execute([$moqNa, $id]);
+
                 $db->prepare("DELETE FROM personnel_moqs WHERE personnel_id = ?")->execute([$id]);
                 if (isset($data['moq_id']) && is_array($data['moq_id'])) {
                     self::saveMoq($id, $data['moq_id'], $data['moq_result'] ?? [], $data['moq_bypass'] ?? []);
@@ -520,8 +551,9 @@ class Personnel {
                 self::saveEducation($id, $data['civil_education'] ?? null);
             }
 
+            $targetYear = !empty($data['record_year']) ? (int)$data['record_year'] : (!empty($data['service_year']) ? (int)$data['service_year'] : (int)date('Y'));
             $updateService = false;
-            $existingService = self::getService($id) ?: [];
+            $existingService = self::getService($id, $targetYear) ?: [];
             $serviceData = [
                 'admission_date' => $existingService['admission_date'] ?? null,
                 'retirement_date' => $existingService['retirement_date'] ?? null,
@@ -560,7 +592,6 @@ class Personnel {
             }
 
             if ($updateService) {
-                $db->prepare("DELETE FROM personnel_service WHERE personnel_id = ?")->execute([$id]);
                 self::saveService(
                     $id,
                     $serviceData['admission_date'],
@@ -574,7 +605,8 @@ class Personnel {
                     $serviceData['cycle_1'],
                     $serviceData['cycle_2'],
                     $serviceData['cycle_3'],
-                    $serviceData['cycle_4']
+                    $serviceData['cycle_4'],
+                    $targetYear
                 );
             }
 
@@ -780,35 +812,112 @@ class Personnel {
     }
 
     private static function saveEducation(int $personnelId, ?string $civilEducation): void {
-        if ($civilEducation === null || trim($civilEducation) === '') {
-            return;
+        $edu = trim((string)$civilEducation);
+        if ($edu === '') {
+            $edu = 'HSC';
         }
         $db = getDB();
         $stmt = $db->prepare("INSERT INTO personnel_education (personnel_id, civil_education) VALUES (?,?)");
-        $stmt->execute([$personnelId, trim($civilEducation)]);
+        $stmt->execute([$personnelId, $edu]);
     }
 
-    private static function saveService(int $personnelId, ?string $admissionDate, ?string $retirementDate, ?string $unMission, ?string $punishmentNote, ?string $ipft1 = null, ?string $ipft2 = null, ?string $ret = null, ?string $speedMarch = null, ?string $c1 = null, ?string $c2 = null, ?string $c3 = null, ?string $c4 = null): void {
-        if (($admissionDate === null || trim($admissionDate) === '') && ($retirementDate === null || trim($retirementDate) === '') && ($unMission === null || trim($unMission) === '') && ($punishmentNote === null || trim($punishmentNote) === '') && ($ipft1 === null || trim($ipft1) === '') && ($ipft2 === null || trim($ipft2) === '') && ($ret === null || trim($ret) === '') && ($speedMarch === null || trim($speedMarch) === '') && ($c1 === null || trim($c1) === '') && ($c2 === null || trim($c2) === '') && ($c3 === null || trim($c3) === '') && ($c4 === null || trim($c4) === '')) {
+    public static function saveService(int $personnelId, ?string $admissionDate, ?string $retirementDate, ?string $unMission, ?string $punishmentNote, ?string $ipft1 = null, ?string $ipft2 = null, ?string $ret = null, ?string $speedMarch = null, ?string $c1 = null, ?string $c2 = null, ?string $c3 = null, ?string $c4 = null, ?int $year = null): void {
+        $year = $year ?: (int)date('Y');
+        $hasCareer = ($admissionDate !== null && trim($admissionDate) !== '')
+            || ($retirementDate !== null && trim($retirementDate) !== '')
+            || ($unMission !== null && trim($unMission) !== '')
+            || ($punishmentNote !== null && trim($punishmentNote) !== '');
+
+        $hasAnnual = ($ipft1 !== null && trim((string)$ipft1) !== '')
+            || ($ipft2 !== null && trim((string)$ipft2) !== '')
+            || ($ret !== null && trim((string)$ret) !== '')
+            || ($speedMarch !== null && trim((string)$speedMarch) !== '')
+            || ($c1 !== null && trim((string)$c1) !== '')
+            || ($c2 !== null && trim((string)$c2) !== '')
+            || ($c3 !== null && trim((string)$c3) !== '')
+            || ($c4 !== null && trim((string)$c4) !== '');
+
+        // 1. Save annual performance to personnel_yearly_records
+        self::saveYearlyRecord($personnelId, $year, [
+            'ipft_1st' => $ipft1,
+            'ipft_2nd' => $ipft2,
+            'ret' => $ret,
+            'speed_march' => $speedMarch,
+            'cycle_1' => $c1,
+            'cycle_2' => $c2,
+            'cycle_3' => $c3,
+            'cycle_4' => $c4,
+        ]);
+
+        if (!$hasCareer && !$hasAnnual) {
             return;
         }
+
         $db = getDB();
-        $stmt = $db->prepare("INSERT INTO personnel_service (personnel_id, admission_date, retirement_date, un_mission, punishment_note, ipft_1st, ipft_2nd, ret, speed_march, cycle_1, cycle_2, cycle_3, cycle_4) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)");
-        $stmt->execute([
-            $personnelId,
-            $admissionDate ?: null,
-            $retirementDate ?: null,
-            trim((string)$unMission) ?: null,
-            trim((string)$punishmentNote) ?: null,
-            trim((string)$ipft1) ?: null,
-            trim((string)$ipft2) ?: null,
-            trim((string)$ret) ?: null,
-            trim((string)$speedMarch) ?: null,
-            trim((string)$c1) ?: null,
-            trim((string)$c2) ?: null,
-            trim((string)$c3) ?: null,
-            trim((string)$c4) ?: null
-        ]);
+        $currentYear = (int)date('Y');
+        $isCurrentYear = ($year === $currentYear);
+
+        $stmt = $db->prepare("SELECT id FROM personnel_service WHERE personnel_id = ? LIMIT 1");
+        $stmt->execute([$personnelId]);
+        $existing = $stmt->fetch();
+
+        if ($existing) {
+            if ($isCurrentYear) {
+                $upd = $db->prepare("UPDATE personnel_service SET 
+                    admission_date = ?, retirement_date = ?, un_mission = ?, punishment_note = ?,
+                    service_year = ?, ipft_1st = ?, ipft_2nd = ?, ret = ?, speed_march = ?,
+                    cycle_1 = ?, cycle_2 = ?, cycle_3 = ?, cycle_4 = ?
+                    WHERE id = ?");
+                $upd->execute([
+                    $admissionDate ?: null,
+                    $retirementDate ?: null,
+                    trim((string)$unMission) ?: null,
+                    trim((string)$punishmentNote) ?: null,
+                    $currentYear,
+                    trim((string)$ipft1) ?: null,
+                    trim((string)$ipft2) ?: null,
+                    trim((string)$ret) ?: null,
+                    trim((string)$speedMarch) ?: null,
+                    trim((string)$c1) ?: null,
+                    trim((string)$c2) ?: null,
+                    trim((string)$c3) ?: null,
+                    trim((string)$c4) ?: null,
+                    $existing['id']
+                ]);
+            } else {
+                $upd = $db->prepare("UPDATE personnel_service SET 
+                    admission_date = ?, retirement_date = ?, un_mission = ?, punishment_note = ?
+                    WHERE id = ?");
+                $upd->execute([
+                    $admissionDate ?: null,
+                    $retirementDate ?: null,
+                    trim((string)$unMission) ?: null,
+                    trim((string)$punishmentNote) ?: null,
+                    $existing['id']
+                ]);
+            }
+        } else {
+            $ins = $db->prepare("INSERT INTO personnel_service (
+                personnel_id, service_year, admission_date, retirement_date, un_mission, punishment_note,
+                ipft_1st, ipft_2nd, ret, speed_march, cycle_1, cycle_2, cycle_3, cycle_4
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
+            $ins->execute([
+                $personnelId,
+                $isCurrentYear ? $currentYear : null,
+                $admissionDate ?: null,
+                $retirementDate ?: null,
+                trim((string)$unMission) ?: null,
+                trim((string)$punishmentNote) ?: null,
+                $isCurrentYear ? (trim((string)$ipft1) ?: null) : null,
+                $isCurrentYear ? (trim((string)$ipft2) ?: null) : null,
+                $isCurrentYear ? (trim((string)$ret) ?: null) : null,
+                $isCurrentYear ? (trim((string)$speedMarch) ?: null) : null,
+                $isCurrentYear ? (trim((string)$c1) ?: null) : null,
+                $isCurrentYear ? (trim((string)$c2) ?: null) : null,
+                $isCurrentYear ? (trim((string)$c3) ?: null) : null,
+                $isCurrentYear ? (trim((string)$c4) ?: null) : null,
+            ]);
+        }
     }
 
     private static function saveFamily(int $personnelId, ?string $birthdate, ?string $marriageDate, ?string $fatherName, ?string $fatherMobile, ?string $motherName, ?string $motherMobile, ?string $spouseName, ?string $spouseMobile, ?string $childrenCount, ?string $maritalStatus, ?string $familyMember, ?string $livingStatus, ?string $fmDateFrom = null, ?string $fmDateTo = null, ?string $fmCurrentAddress = null): void {
@@ -925,11 +1034,223 @@ class Personnel {
         return $stmt->fetch() ?: null;
     }
 
-    public static function getService(int $personnelId): ?array {
+    public static function ensureYearlyRollover(): void {
+        static $checked = false;
+        if ($checked) return;
+        $checked = true;
+
+        $currentYear = (int)date('Y');
         $db = getDB();
+
+        try {
+            // Find records where service_year is set and is less than current year
+            $stmt = $db->prepare("SELECT * FROM personnel_service WHERE service_year IS NOT NULL AND service_year < ?");
+            $stmt->execute([$currentYear]);
+            $oldRecords = $stmt->fetchAll();
+
+            if (!empty($oldRecords)) {
+                $insertYearly = $db->prepare("
+                    INSERT INTO personnel_yearly_records 
+                    (personnel_id, record_year, ipft_1st, ipft_2nd, ret, speed_march, cycle_1, cycle_2, cycle_3, cycle_4)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON DUPLICATE KEY UPDATE 
+                        ipft_1st = VALUES(ipft_1st), ipft_2nd = VALUES(ipft_2nd), ret = VALUES(ret),
+                        speed_march = VALUES(speed_march), cycle_1 = VALUES(cycle_1), cycle_2 = VALUES(cycle_2),
+                        cycle_3 = VALUES(cycle_3), cycle_4 = VALUES(cycle_4)
+                ");
+
+                $updateService = $db->prepare("
+                    UPDATE personnel_service 
+                    SET ipft_1st = ?, ipft_2nd = ?, ret = ?, speed_march = ?,
+                        cycle_1 = ?, cycle_2 = ?, cycle_3 = ?, cycle_4 = ?,
+                        service_year = ?
+                    WHERE id = ?
+                ");
+
+                foreach ($oldRecords as $rec) {
+                    $insertYearly->execute([
+                        $rec['personnel_id'],
+                        $rec['service_year'],
+                        $rec['ipft_1st'],
+                        $rec['ipft_2nd'],
+                        $rec['ret'],
+                        $rec['speed_march'],
+                        $rec['cycle_1'],
+                        $rec['cycle_2'],
+                        $rec['cycle_3'],
+                        $rec['cycle_4']
+                    ]);
+
+                    $currStmt = $db->prepare("SELECT * FROM personnel_yearly_records WHERE personnel_id = ? AND record_year = ? LIMIT 1");
+                    $currStmt->execute([$rec['personnel_id'], $currentYear]);
+                    $curr = $currStmt->fetch();
+
+                    if ($curr) {
+                        $updateService->execute([
+                            $curr['ipft_1st'], $curr['ipft_2nd'], $curr['ret'], $curr['speed_march'],
+                            $curr['cycle_1'], $curr['cycle_2'], $curr['cycle_3'], $curr['cycle_4'],
+                            $currentYear, $rec['id']
+                        ]);
+                    } else {
+                        $updateService->execute([
+                            null, null, null, null,
+                            null, null, null, null,
+                            $currentYear, $rec['id']
+                        ]);
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // Ignore if table not yet initialized
+        }
+    }
+
+    public static function saveYearlyRecord(int $personnelId, int $year, array $data): void {
+        $db = getDB();
+        $ipft1 = trim((string)($data['ipft_1st'] ?? '')) ?: null;
+        $ipft2 = trim((string)($data['ipft_2nd'] ?? '')) ?: null;
+        $ret = trim((string)($data['ret'] ?? '')) ?: null;
+        $speedMarch = trim((string)($data['speed_march'] ?? '')) ?: null;
+        $c1 = trim((string)($data['cycle_1'] ?? '')) ?: null;
+        $c2 = trim((string)($data['cycle_2'] ?? '')) ?: null;
+        $c3 = trim((string)($data['cycle_3'] ?? '')) ?: null;
+        $c4 = trim((string)($data['cycle_4'] ?? '')) ?: null;
+
+        $hasAny = ($ipft1 !== null || $ipft2 !== null || $ret !== null || $speedMarch !== null || $c1 !== null || $c2 !== null || $c3 !== null || $c4 !== null);
+
+        if ($hasAny) {
+            $stmt = $db->prepare("
+                INSERT INTO personnel_yearly_records 
+                (personnel_id, record_year, ipft_1st, ipft_2nd, ret, speed_march, cycle_1, cycle_2, cycle_3, cycle_4)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE 
+                    ipft_1st = VALUES(ipft_1st), ipft_2nd = VALUES(ipft_2nd), ret = VALUES(ret),
+                    speed_march = VALUES(speed_march), cycle_1 = VALUES(cycle_1), cycle_2 = VALUES(cycle_2),
+                    cycle_3 = VALUES(cycle_3), cycle_4 = VALUES(cycle_4)
+            ");
+            $stmt->execute([$personnelId, $year, $ipft1, $ipft2, $ret, $speedMarch, $c1, $c2, $c3, $c4]);
+        } else {
+            $stmt = $db->prepare("DELETE FROM personnel_yearly_records WHERE personnel_id = ? AND record_year = ?");
+            $stmt->execute([$personnelId, $year]);
+        }
+
+        $currentYear = (int)date('Y');
+        if ($year === $currentYear) {
+            $check = $db->prepare("SELECT id FROM personnel_service WHERE personnel_id = ? LIMIT 1");
+            $check->execute([$personnelId]);
+            $existingService = $check->fetch();
+
+            if ($existingService) {
+                $upd = $db->prepare("
+                    UPDATE personnel_service 
+                    SET ipft_1st = ?, ipft_2nd = ?, ret = ?, speed_march = ?,
+                        cycle_1 = ?, cycle_2 = ?, cycle_3 = ?, cycle_4 = ?,
+                        service_year = ?
+                    WHERE personnel_id = ?
+                ");
+                $upd->execute([$ipft1, $ipft2, $ret, $speedMarch, $c1, $c2, $c3, $c4, $currentYear, $personnelId]);
+            }
+        }
+    }
+
+    public static function getYearlyHistory(int $personnelId): array {
+        self::ensureYearlyRollover();
+        $db = getDB();
+        $stmt = $db->prepare("SELECT * FROM personnel_yearly_records WHERE personnel_id = ? ORDER BY record_year DESC");
+        $stmt->execute([$personnelId]);
+        return $stmt->fetchAll() ?: [];
+    }
+
+    public static function getYearlyRecord(int $personnelId, int $year): ?array {
+        self::ensureYearlyRollover();
+        $db = getDB();
+        $stmt = $db->prepare("SELECT * FROM personnel_yearly_records WHERE personnel_id = ? AND record_year = ? LIMIT 1");
+        $stmt->execute([$personnelId, $year]);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    }
+
+    public static function resetYearlyRecord(int $personnelId, int $year): void {
+        $db = getDB();
+        $stmt = $db->prepare("DELETE FROM personnel_yearly_records WHERE personnel_id = ? AND record_year = ?");
+        $stmt->execute([$personnelId, $year]);
+
+        if ($year === (int)date('Y')) {
+            $stmt = $db->prepare("
+                UPDATE personnel_service 
+                SET ipft_1st = NULL, ipft_2nd = NULL, ret = NULL, speed_march = NULL,
+                    cycle_1 = NULL, cycle_2 = NULL, cycle_3 = NULL, cycle_4 = NULL
+                WHERE personnel_id = ?
+            ");
+            $stmt->execute([$personnelId]);
+        }
+    }
+
+    public static function resetAllYearlyRecords(int $year): void {
+        $db = getDB();
+        $stmt = $db->prepare("DELETE FROM personnel_yearly_records WHERE record_year = ?");
+        $stmt->execute([$year]);
+
+        if ($year === (int)date('Y')) {
+            $db->exec("
+                UPDATE personnel_service 
+                SET ipft_1st = NULL, ipft_2nd = NULL, ret = NULL, speed_march = NULL,
+                    cycle_1 = NULL, cycle_2 = NULL, cycle_3 = NULL, cycle_4 = NULL
+            ");
+        }
+    }
+
+    public static function getService(int $personnelId, ?int $year = null): ?array {
+        $db = getDB();
+        $targetYear = $year ?: (int)date('Y');
+        self::ensureYearlyRollover();
+
         $stmt = $db->prepare("SELECT * FROM personnel_service WHERE personnel_id = ? LIMIT 1");
         $stmt->execute([$personnelId]);
-        return $stmt->fetch() ?: null;
+        $service = $stmt->fetch();
+
+        $yrStmt = $db->prepare("SELECT * FROM personnel_yearly_records WHERE personnel_id = ? AND record_year = ? LIMIT 1");
+        $yrStmt->execute([$personnelId, $targetYear]);
+        $yearly = $yrStmt->fetch();
+
+        if (!$service && !$yearly) {
+            return null;
+        }
+
+        if (!$service) {
+            $service = [
+                'personnel_id' => $personnelId,
+                'admission_date' => null,
+                'retirement_date' => null,
+                'un_mission' => null,
+                'punishment_note' => null,
+            ];
+        }
+
+        $service['record_year'] = $targetYear;
+        $service['service_year'] = $targetYear;
+
+        if ($yearly) {
+            $service['ipft_1st'] = $yearly['ipft_1st'];
+            $service['ipft_2nd'] = $yearly['ipft_2nd'];
+            $service['ret'] = $yearly['ret'];
+            $service['speed_march'] = $yearly['speed_march'];
+            $service['cycle_1'] = $yearly['cycle_1'];
+            $service['cycle_2'] = $yearly['cycle_2'];
+            $service['cycle_3'] = $yearly['cycle_3'];
+            $service['cycle_4'] = $yearly['cycle_4'];
+        } else {
+            $service['ipft_1st'] = null;
+            $service['ipft_2nd'] = null;
+            $service['ret'] = null;
+            $service['speed_march'] = null;
+            $service['cycle_1'] = null;
+            $service['cycle_2'] = null;
+            $service['cycle_3'] = null;
+            $service['cycle_4'] = null;
+        }
+
+        return $service;
     }
 
     public static function getFamily(int $personnelId): ?array {
@@ -1206,9 +1527,23 @@ class Personnel {
      * @param array<int, array<string, mixed>> $moqs
      * @param array<int, array<string, mixed>> $courses
      * @param array<int, array<string, mixed>> $cadres
-     * @return array{has_logic: bool, is_qualified: bool, canonical_rank: ?string, missing: string[], completed: string[]}
+     * @param bool $isMoqNa
+     * @param string|null $civilEducation
+     * @return array{has_logic: bool, is_qualified: bool, canonical_rank: ?string, missing: string[], completed: string[], is_na?: bool, status?: string, status_label?: string}
      */
-    public static function checkPromotionStatus(?string $rankName, array $moqs = [], array $courses = [], array $cadres = []): array {
+    public static function checkPromotionStatus(?string $rankName, array $moqs = [], array $courses = [], array $cadres = [], bool $isMoqNa = false, ?string $civilEducation = null): array {
+        if ($isMoqNa) {
+            return [
+                'has_logic' => false,
+                'is_qualified' => false,
+                'is_na' => true,
+                'status' => 'not_applicable',
+                'status_label' => 'Not Applicable',
+                'canonical_rank' => null,
+                'missing' => [],
+                'completed' => []
+            ];
+        }
         $rawRank = strtolower(trim((string)$rankName));
         if ($rawRank === '') {
             return [
@@ -1316,6 +1651,12 @@ class Personnel {
                 $missing[] = 'Arms Commando or Services Commando';
             }
 
+            if ($hasItem(['bmr', 'basic military refresher'])) {
+                $completed[] = 'BMR';
+            } else {
+                $missing[] = 'BMR';
+            }
+
             if ($hasItem(['pe', 'promotion exam', 'promotion examination', 'physical efficiency'])) {
                 $completed[] = 'PE';
             } else {
@@ -1347,7 +1688,8 @@ class Personnel {
             }
         } elseif ($canonicalRank === 'sergeant') {
             $ncocMatches = ['ncoc', 'non-commissioned officers course', 'non commissioned officers course'];
-            $hasNcoc = $hasItem($ncocMatches);
+            $ncocAdvMatches = ["nco's advanced", "nco’s advanced", "nco advanced", "ncos advanced"];
+            $hasNcoc = $hasItem($ncocMatches) || $hasItem($ncocAdvMatches);
 
             if ($hasNcoc) {
                 $completed[] = 'NCOC';
@@ -1390,12 +1732,35 @@ class Personnel {
             } else {
                 $missing[] = 'Utility Course';
             }
+
+            if ($hasItem(['pe', 'promotion exam', 'promotion examination', 'physical efficiency'])) {
+                $completed[] = 'PE';
+            } else {
+                $missing[] = 'PE';
+            }
         } elseif ($canonicalRank === 'warrant officer') {
             if ($hasItem(['clm cadre', 'clm', 'jcoc', 'junior command', 'junior commissioned'])) {
                 $completed[] = 'CLM Cadre or JCOC';
             } else {
                 $missing[] = 'CLM Cadre or JCOC';
             }
+
+            if ($hasItem(['pe', 'promotion exam', 'promotion examination', 'physical efficiency'])) {
+                $completed[] = 'PE';
+            } else {
+                $missing[] = 'PE';
+            }
+        }
+
+        $edu = trim((string)$civilEducation);
+        if ($edu === '') {
+            $edu = 'HSC';
+        }
+        $isSsc = (strtoupper($edu) === 'SSC') || (preg_match('/\bSSC\b/i', $edu) === 1);
+        if ($isSsc) {
+            $missing[] = 'HSC required (has SSC)';
+        } else {
+            $completed[] = 'Civil Education: ' . $edu;
         }
 
         return [
@@ -1424,6 +1789,96 @@ class Personnel {
             $cached = [];
         }
         return $cached;
+    }
+
+    /**
+     * Get summary counts and personnel IDs grouped by promotion/MOQ qualification status.
+     * Evaluates rank-based rules via checkPromotionStatus().
+     *
+     * @return array{qualified_count: int, not_qualified_count: int, qualified_ids: int[], not_qualified_ids: int[]}
+     */
+    public static function getPromotionQualificationCounts(): array {
+        $db = getDB();
+        $personnelRanks = $db->query("SELECT p.id, p.moq_na, r.name AS rank_name FROM personnel p JOIN ranks r ON p.rank_id = r.id")->fetchAll(\PDO::FETCH_ASSOC);
+        $allMoqs = $db->query("SELECT pm.personnel_id, m.name AS moq_name, pm.result, pm.is_bypass FROM personnel_moqs pm JOIN moqs m ON pm.moq_id = m.id")->fetchAll(\PDO::FETCH_ASSOC);
+        $allCourses = $db->query("SELECT pc.personnel_id, c.name AS course_name, pc.result FROM personnel_courses pc JOIN courses c ON pc.course_id = c.id")->fetchAll(\PDO::FETCH_ASSOC);
+        $allCadres = $db->query("SELECT pc.personnel_id, c.name AS cadre_name FROM personnel_cadres pc JOIN cadres c ON pc.cadre_id = c.id")->fetchAll(\PDO::FETCH_ASSOC);
+        $allEdus = $db->query("SELECT personnel_id, civil_education FROM personnel_education")->fetchAll(\PDO::FETCH_KEY_PAIR) ?: [];
+
+        $personnelMoqMap = [];
+        foreach ($allMoqs as $row) {
+            $personnelMoqMap[$row['personnel_id']][] = $row;
+        }
+        $personnelCourseMap = [];
+        foreach ($allCourses as $row) {
+            $personnelCourseMap[$row['personnel_id']][] = $row;
+        }
+        $personnelCadreMap = [];
+        foreach ($allCadres as $row) {
+            $personnelCadreMap[$row['personnel_id']][] = $row;
+        }
+
+        $qualifiedCount = 0;
+        $notQualifiedCount = 0;
+        $naCount = 0;
+        $qualifiedIds = [];
+        $notQualifiedIds = [];
+        $naIds = [];
+
+        foreach ($personnelRanks as $p) {
+            $pId = (int)$p['id'];
+            $isMoqNa = !empty($p['moq_na']);
+            if ($isMoqNa) {
+                $naCount++;
+                $naIds[] = $pId;
+                continue;
+            }
+
+            $pMoqs = $personnelMoqMap[$pId] ?? [];
+            $pCourses = $personnelCourseMap[$pId] ?? [];
+            $pCadres = $personnelCadreMap[$pId] ?? [];
+            $pEdu = $allEdus[$pId] ?? 'HSC';
+
+            $status = self::checkPromotionStatus($p['rank_name'] ?? '', $pMoqs, $pCourses, $pCadres, false, $pEdu);
+            if ($status['has_logic']) {
+                if ($status['is_qualified']) {
+                    $qualifiedCount++;
+                    $qualifiedIds[] = $pId;
+                } else {
+                    $notQualifiedCount++;
+                    $notQualifiedIds[] = $pId;
+                }
+            }
+        }
+
+        return [
+            'qualified_count' => $qualifiedCount,
+            'not_qualified_count' => $notQualifiedCount,
+            'na_count' => $naCount,
+            'qualified_ids' => $qualifiedIds,
+            'not_qualified_ids' => $notQualifiedIds,
+            'na_ids' => $naIds
+        ];
+    }
+
+    /**
+     * Get personnel IDs matching a given MOQ qualification status ('qualified', 'not_qualified', 'not_applicable').
+     *
+     * @param string $moqStatus
+     * @return int[]
+     */
+    public static function getPersonnelIdsByMoqStatus(string $moqStatus): array {
+        $summary = self::getPromotionQualificationCounts();
+        if ($moqStatus === 'qualified') {
+            return $summary['qualified_ids'];
+        }
+        if ($moqStatus === 'not_qualified') {
+            return $summary['not_qualified_ids'];
+        }
+        if ($moqStatus === 'not_applicable' || $moqStatus === 'na') {
+            return $summary['na_ids'];
+        }
+        return [];
     }
 }
 

@@ -60,6 +60,8 @@ if ($status !== 'ALL') {
     if ($annual === '1st') {
         if ($status === 'PENDING') {
             $sql .= " AND (ps.ipft_1st IS NULL OR TRIM(ps.ipft_1st) = '')";
+        } elseif ($status === 'NA') {
+            $sql .= " AND UPPER(TRIM(ps.ipft_1st)) IN ('NOT ATTENDING', 'NOT APPLICABLE')";
         } else {
             $sql .= " AND UPPER(TRIM(ps.ipft_1st)) = ?";
             $params[] = $status;
@@ -67,6 +69,8 @@ if ($status !== 'ALL') {
     } elseif ($annual === '2nd') {
         if ($status === 'PENDING') {
             $sql .= " AND (ps.ipft_2nd IS NULL OR TRIM(ps.ipft_2nd) = '')";
+        } elseif ($status === 'NA') {
+            $sql .= " AND UPPER(TRIM(ps.ipft_2nd)) IN ('NOT ATTENDING', 'NOT APPLICABLE')";
         } else {
             $sql .= " AND UPPER(TRIM(ps.ipft_2nd)) = ?";
             $params[] = $status;
@@ -74,6 +78,8 @@ if ($status !== 'ALL') {
     } else {
         if ($status === 'PENDING') {
             $sql .= " AND ((ps.ipft_1st IS NULL OR TRIM(ps.ipft_1st) = '') OR (ps.ipft_2nd IS NULL OR TRIM(ps.ipft_2nd) = ''))";
+        } elseif ($status === 'NA') {
+            $sql .= " AND (UPPER(TRIM(ps.ipft_1st)) IN ('NOT ATTENDING', 'NOT APPLICABLE') OR UPPER(TRIM(ps.ipft_2nd)) IN ('NOT ATTENDING', 'NOT APPLICABLE'))";
         } else {
             $sql .= " AND (UPPER(TRIM(ps.ipft_1st)) = ? OR UPPER(TRIM(ps.ipft_2nd)) = ?)";
             $params[] = $status;
@@ -110,18 +116,18 @@ if (empty($results)) {
     </thead>
     <tbody>
       <?php foreach ($results as $p): 
-        $badgeClass1 = match(strtoupper($p['ipft_1st'])) {
+        $badgeClass1 = match(strtoupper(trim((string)$p['ipft_1st']))) {
             'PASS' => 'bg-success text-white',
             'FAIL' => 'bg-danger text-white',
-            'NOT ATTENDING' => 'bg-warning text-dark',
+            'NOT ATTENDING', 'NOT APPLICABLE' => 'bg-warning text-dark',
             default => 'bg-secondary text-white opacity-75'
         };
         $label1 = !empty($p['ipft_1st']) ? htmlspecialchars($p['ipft_1st']) : 'PENDING';
 
-        $badgeClass2 = match(strtoupper($p['ipft_2nd'])) {
+        $badgeClass2 = match(strtoupper(trim((string)$p['ipft_2nd']))) {
             'PASS' => 'bg-success text-white',
             'FAIL' => 'bg-danger text-white',
-            'NOT ATTENDING' => 'bg-warning text-dark',
+            'NOT ATTENDING', 'NOT APPLICABLE' => 'bg-warning text-dark',
             default => 'bg-secondary text-white opacity-75'
         };
         $label2 = !empty($p['ipft_2nd']) ? htmlspecialchars($p['ipft_2nd']) : 'PENDING';

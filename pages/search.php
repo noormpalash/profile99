@@ -21,11 +21,12 @@ $filters = [
   'marital_status' => trim((string) ($_GET['marital_status'] ?? '')),
   'platoon_id' => (string) ($_GET['platoon_id'] ?? ''),
   'family_member' => trim((string) ($_GET['family_member'] ?? '')),
+  'civil_education' => trim((string) ($_GET['civil_education'] ?? '')),
 ];
 
 $hasFilters = implode('', $filters) !== '';
 $results = $hasFilters ? Personnel::filter($filters) : [];
-$hasAdvancedFilters = ($filters['rank_id'] !== '' || $filters['unit_id'] !== '' || $filters['status'] !== '' || $filters['district'] !== '' || $filters['course_id'] !== '' || $filters['moq_id'] !== '' || $filters['moq_status'] !== '' || $filters['cadre_id'] !== '' || $filters['marital_status'] !== '' || $filters['platoon_id'] !== '' || $filters['blood_group_id'] !== '' || $filters['family_member'] !== '');
+$hasAdvancedFilters = ($filters['rank_id'] !== '' || $filters['unit_id'] !== '' || $filters['status'] !== '' || $filters['district'] !== '' || $filters['course_id'] !== '' || $filters['moq_id'] !== '' || $filters['moq_status'] !== '' || $filters['cadre_id'] !== '' || $filters['marital_status'] !== '' || $filters['platoon_id'] !== '' || $filters['blood_group_id'] !== '' || $filters['family_member'] !== '' || $filters['civil_education'] !== '');
 $showAdvanced = $hasAdvancedFilters || isset($_GET['advanced']);
 
 $ranks = LookupManager::getAll('ranks');
@@ -35,6 +36,7 @@ $courses = LookupManager::getAll('courses');
 $moqs = LookupManager::getAll('moqs');
 $cadres = LookupManager::getAll('cadres');
 $platoons = LookupManager::getAll('platoons');
+$civilEducations = LookupManager::getAll('civil_educations');
 $districts = bangladeshDistricts();
 ?>
 <?php include __DIR__ . '/../includes/header.php'; ?>
@@ -208,10 +210,9 @@ $districts = bangladeshDistricts();
                   <label class="form-label small text-secondary fw-medium">MOQ Status</label>
                   <select name="moq_status" class="form-select">
                     <option value="">Any</option>
-                    <option value="qualified" <?= $filters['moq_status'] === 'qualified' ? 'selected' : '' ?>>Qualified
-                    </option>
-                    <option value="not_qualified" <?= $filters['moq_status'] === 'not_qualified' ? 'selected' : '' ?>>Not
-                      Qualified</option>
+                    <option value="qualified" <?= $filters['moq_status'] === 'qualified' ? 'selected' : '' ?>>Qualified</option>
+                    <option value="not_qualified" <?= $filters['moq_status'] === 'not_qualified' ? 'selected' : '' ?>>Not Qualified</option>
+                    <option value="not_applicable" <?= in_array($filters['moq_status'], ['not_applicable', 'na'], true) ? 'selected' : '' ?>>Not Applicable</option>
                   </select>
                 </div>
                 <div class="col-md-3">
@@ -260,6 +261,17 @@ $districts = bangladeshDistricts();
                     <option value="">Any</option>
                     <option value="Yes" <?= $filters['family_member'] === 'Yes' ? 'selected' : '' ?>>Yes</option>
                     <option value="No" <?= $filters['family_member'] === 'No' ? 'selected' : '' ?>>No</option>
+                  </select>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label small text-secondary fw-medium">Civil Education</label>
+                  <select name="civil_education" class="form-select">
+                    <option value="">All educations</option>
+                    <?php foreach ($civilEducations as $ce): ?>
+                      <option value="<?= htmlspecialchars($ce['name']) ?>" <?= $filters['civil_education'] === $ce['name'] ? 'selected' : '' ?>>
+                        <?= htmlspecialchars($ce['name']) ?>
+                      </option>
+                    <?php endforeach; ?>
                   </select>
                 </div>
               </div>
@@ -322,6 +334,10 @@ $districts = bangladeshDistricts();
                       <?php if (!empty($p['mobile_number'])): ?>
                         <span class="text-secondary"><i
                             class="ti ti-phone me-1"></i><?= htmlspecialchars($p['mobile_number']) ?></span>
+                      <?php endif; ?>
+                      <?php if (!empty($p['civil_education'])): ?>
+                        <span class="text-secondary"><i
+                            class="ti ti-school me-1"></i><?= htmlspecialchars($p['civil_education']) ?></span>
                       <?php endif; ?>
                       <div class="ms-auto d-flex align-items-center gap-2">
                         <?php if (isset($p['family_member']) && $p['family_member'] === 'Yes'): ?>

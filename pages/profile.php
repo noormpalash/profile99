@@ -16,6 +16,7 @@ if (!$person) {
 
 $socialLinks = Personnel::getSocialLinks($id);
 $service = Personnel::getService($id);
+$yearlyHistory = Personnel::getYearlyHistory($id);
 $family = Personnel::getFamily($id);
 $health = Personnel::getHealth($id);
 $note = Personnel::getNotes($id);
@@ -23,9 +24,12 @@ $courses = Personnel::getCourses($id);
 $moqs = Personnel::getMoqs($id);
 $cadres = Personnel::getCadres($id);
 $leaves = Personnel::getLeaves($id);
+$education = Personnel::getEducation($id);
 
 // Promotion Qualification Logic
-$promoStatus = Personnel::checkPromotionStatus($person['rank_name'] ?? '', $moqs, $courses, $cadres);
+$isMoqNa = !empty($person['moq_na']);
+$civilEdu = $education['civil_education'] ?? 'HSC';
+$promoStatus = Personnel::checkPromotionStatus($person['rank_name'] ?? '', $moqs, $courses, $cadres, $isMoqNa, $civilEdu);
 $hasPromotionLogic = $promoStatus['has_logic'];
 $isQualified = $promoStatus['is_qualified'];
 $missingMoqs = $promoStatus['missing'];
@@ -801,10 +805,16 @@ $canEdit = Auth::hasAnyPermission([
                 <div class="stat-label-compact">Platoon</div>
                 <div class="stat-val-compact"><?= $display($person['platoon_name'] ?? null) ?></div>
               </div>
+              <div class="stat-item-compact">
+                <div class="stat-label-compact">Civil Education</div>
+                <div class="stat-val-compact"><?= $display($education['civil_education'] ?? 'HSC') ?></div>
+              </div>
               <div class="stat-item-compact" style="grid-column: span 2;">
                 <div class="stat-label-compact">MOQ Status</div>
                 <div class="stat-val-compact" style="line-height:1.2;">
-                  <?php if ($hasPromotionLogic): ?>
+                  <?php if (!empty($isMoqNa)): ?>
+                    <span class="text-secondary fw-bold">Not Applicable</span>
+                  <?php elseif ($hasPromotionLogic): ?>
                     <?php if ($isQualified): ?>
                       <span class="text-success fw-bold">Qualified</span>
                     <?php else: ?>
@@ -905,8 +915,11 @@ $canEdit = Auth::hasAnyPermission([
     <!-- Yearly Plan -->
     <div class="col-12 mb-3">
       <div class="compact-cc-card">
-        <div class="compact-cc-head">
-          <h5>Yearly Plan</h5>
+        <div class="compact-cc-head d-flex justify-content-between align-items-center">
+          <div class="d-flex align-items-center gap-2">
+            <h5>Yearly Plan</h5>
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle" style="font-size:0.75rem; font-weight:600;">Year: <?= htmlspecialchars((string)($service['record_year'] ?? date('Y'))) ?></span>
+          </div>
           <span class="text-muted" style="font-size:0.76rem;">Training & administration cycle plan</span>
         </div>
         <div class="row g-3 text-center mt-1">
@@ -918,6 +931,86 @@ $canEdit = Auth::hasAnyPermission([
             <div style="font-size:1rem; font-weight:600; color:#1e293b;"><?= $val ? htmlspecialchars($val) : '-' ?></div>
           </div>
           <?php endforeach; ?>
+        </div>
+      </div>
+    </div>
+
+    <!-- Yearly Performance & Plan History -->
+    <div class="col-12 mb-3">
+      <div class="compact-cc-card">
+        <div class="compact-cc-head d-flex justify-content-between align-items-center" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#yearlyPlanHistoryCollapse" aria-expanded="true" aria-controls="yearlyPlanHistoryCollapse">
+          <div>
+            <h5 class="mb-0 d-inline-flex align-items-center">
+              <i class="ti ti-history me-1 text-primary"></i> Performance & Yearly Plan History
+              <?php if (!empty($yearlyHistory)): ?>
+                <span class="badge bg-secondary-subtle text-secondary border ms-2" style="font-size:0.72rem;"><?= count($yearlyHistory) ?></span>
+              <?php endif; ?>
+            </h5>
+            <div class="text-muted" style="font-size:0.76rem;">Historical archive of annual IPFT, RET, Speed March, and 4-cycle training plans</div>
+          </div>
+          <div class="d-flex align-items-center gap-2" onclick="event.stopPropagation();">
+            <?php if (Auth::hasAnyPermission(['edit_personnel_ipft', 'edit_personnel_yearly_plan'])): ?>
+              <a href="edit_personnel.php?id=<?= $person['id'] ?>" class="btn btn-sm btn-outline-primary py-1 px-2 no-print" style="font-size: 0.75rem; border-radius: 6px;">
+                <i class="ti ti-edit me-1"></i>Edit Annual Records
+              </a>
+            <?php endif; ?>
+            <button type="button" class="btn btn-sm btn-light border py-1 px-2 no-print" data-bs-toggle="collapse" data-bs-target="#yearlyPlanHistoryCollapse" aria-expanded="true" aria-controls="yearlyPlanHistoryCollapse" id="yearlyPlanHistoryToggle" style="font-size: 0.75rem; border-radius: 6px;">
+              <i class="ti ti-chevron-up me-1" id="yearlyPlanHistoryIcon"></i><span id="yearlyPlanHistoryText">Collapse</span>
+            </button>
+          </div>
+        </div>
+        <div class="collapse show" id="yearlyPlanHistoryCollapse">
+          <div class="table-responsive mt-2">
+            <table class="table table-sm table-bordered table-hover mb-0" style="font-size:0.83rem;">
+              <thead class="table-light">
+                <tr class="text-center align-middle">
+                  <th style="width: 100px;">Year</th>
+                  <th>IPFT 1st</th>
+                  <th>IPFT 2nd</th>
+                  <th>RET</th>
+                  <th>Speed March</th>
+                  <th>1st Cycle</th>
+                  <th>2nd Cycle</th>
+                  <th>3rd Cycle</th>
+                  <th>4th Cycle</th>
+                </tr>
+              </thead>
+              <tbody>
+                <?php if (empty($yearlyHistory)): ?>
+                  <tr>
+                    <td colspan="9" class="text-center text-muted py-3">No historical yearly records found. Annual performance records are archived here every year.</td>
+                  </tr>
+                <?php else: ?>
+                  <?php foreach ($yearlyHistory as $yh): 
+                    $isCurr = ((int)$yh['record_year'] === (int)date('Y'));
+                    $badgePass = fn($v) => match(strtoupper(trim((string)$v))) {
+                      'PASS' => '<span class="badge bg-success-subtle text-success border border-success-subtle">PASS</span>',
+                      'FAIL' => '<span class="badge bg-danger-subtle text-danger border border-danger-subtle">FAIL</span>',
+                      'NOT ATTENDING' => '<span class="badge bg-warning-subtle text-warning border border-warning-subtle">NOT ATTENDING</span>',
+                      'NOT APPLICABLE' => '<span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">NOT APPLICABLE</span>',
+                      default => ($v ? htmlspecialchars($v) : '<span class="text-muted">-</span>')
+                    };
+                  ?>
+                  <tr class="text-center align-middle <?= $isCurr ? 'table-primary-subtle fw-medium' : '' ?>">
+                    <td>
+                      <span class="badge <?= $isCurr ? 'bg-primary text-white' : 'bg-secondary-subtle text-secondary border' ?>" style="font-size: 0.8rem;">
+                        <?= htmlspecialchars((string)$yh['record_year']) ?><?= $isCurr ? ' (Current)' : '' ?>
+                      </span>
+                    </td>
+                    <td><?= $badgePass($yh['ipft_1st']) ?></td>
+                    <td><?= $badgePass($yh['ipft_2nd']) ?></td>
+                    <td><?= $badgePass($yh['ret']) ?></td>
+                    <td><?= $yh['speed_march'] ? htmlspecialchars($yh['speed_march']) : '<span class="text-muted">-</span>' ?></td>
+                    <td><?= $yh['cycle_1'] ? htmlspecialchars($yh['cycle_1']) : '<span class="text-muted">-</span>' ?></td>
+                    <td><?= $yh['cycle_2'] ? htmlspecialchars($yh['cycle_2']) : '<span class="text-muted">-</span>' ?></td>
+                    <td><?= $yh['cycle_3'] ? htmlspecialchars($yh['cycle_3']) : '<span class="text-muted">-</span>' ?></td>
+                    <td><?= $yh['cycle_4'] ? htmlspecialchars($yh['cycle_4']) : '<span class="text-muted">-</span>' ?></td>
+                  </tr>
+                  <?php endforeach; ?>
+                <?php endif; ?>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
@@ -1086,23 +1179,27 @@ $canEdit = Auth::hasAnyPermission([
             <div class="irow-v"><?= $display($person['platoon_name'] ?? null) ?></div>
           </div>
           <div class="irow">
+            <div class="irow-l">Civil Education</div>
+            <div class="irow-v"><?= $display($education['civil_education'] ?? 'HSC') ?></div>
+          </div>
+          <div class="irow">
             <div class="irow-l">UN Mission</div>
             <div class="irow-v"><?= $display($service['un_mission'] ?? null) ?></div>
           </div>
           <div class="irow">
-            <div class="irow-l">IPFT (1st Annual)</div>
+            <div class="irow-l">IPFT (1st Annual) <small class="text-muted">(<?= htmlspecialchars((string)($service['record_year'] ?? date('Y'))) ?>)</small></div>
             <div class="irow-v"><?= $display($service['ipft_1st'] ?? null) ?></div>
           </div>
           <div class="irow">
-            <div class="irow-l">IPFT (2nd Annual)</div>
+            <div class="irow-l">IPFT (2nd Annual) <small class="text-muted">(<?= htmlspecialchars((string)($service['record_year'] ?? date('Y'))) ?>)</small></div>
             <div class="irow-v"><?= $display($service['ipft_2nd'] ?? null) ?></div>
           </div>
           <div class="irow">
-            <div class="irow-l">RET</div>
+            <div class="irow-l">RET <small class="text-muted">(<?= htmlspecialchars((string)($service['record_year'] ?? date('Y'))) ?>)</small></div>
             <div class="irow-v"><?= $display($service['ret'] ?? null) ?></div>
           </div>
           <div class="irow">
-            <div class="irow-l">Speed March</div>
+            <div class="irow-l">Speed March <small class="text-muted">(<?= htmlspecialchars((string)($service['record_year'] ?? date('Y'))) ?>)</small></div>
             <div class="irow-v"><?= $display($service['speed_march'] ?? null) ?></div>
           </div>
           <div class="irow full">
@@ -1166,7 +1263,13 @@ $canEdit = Auth::hasAnyPermission([
                   <h5>MOQs</h5>
                   <span class="text-muted" style="font-size:0.76rem;">Recorded MOQs & results</span>
                 </div>
-                <?php if ($hasPromotionLogic): ?>
+                <?php if (!empty($isMoqNa)): ?>
+                  <div class="ms-2">
+                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle" style="font-size:0.7rem; padding: 4px 6px;">
+                      Not Applicable
+                    </span>
+                  </div>
+                <?php elseif ($hasPromotionLogic): ?>
                   <div class="ms-2">
                     <span class="badge <?= $isQualified ? 'bg-success' : 'bg-danger' ?>" style="font-size:0.7rem; padding: 4px 6px;">
                       <?= $isQualified ? 'Qualified for Promotion' : 'Not Qualified for Promotion' ?>
@@ -1359,6 +1462,10 @@ $canEdit = Auth::hasAnyPermission([
     <div class="bio-section-title avoid-break">Training & Qualifications</div>
     <table class="bio-table avoid-break">
       <tr>
+        <td class="lbl">Civil Education</td>
+        <td class="val" colspan="3"><?= $display($education['civil_education'] ?? 'HSC') ?></td>
+      </tr>
+      <tr>
         <td class="lbl">Cadres</td>
         <td class="val" colspan="3"><?php if($cadres) { echo implode(', ', array_map(fn($c) => htmlspecialchars($c['name']), $cadres)); } else { echo '-'; } ?></td>
       </tr>
@@ -1368,13 +1475,24 @@ $canEdit = Auth::hasAnyPermission([
       </tr>
       <tr>
         <td class="lbl">MOQs</td>
-        <td class="val" colspan="3"><?php if($moqs) { echo implode(', ', array_map(fn($c) => htmlspecialchars($c['moq_name']) . ' (' . htmlspecialchars($c['result'] ?? '') . ')', $moqs)); } else { echo '-'; } ?></td>
+        <td class="val" colspan="3"><?php 
+          if (!empty($isMoqNa)) {
+            echo '<span class="text-secondary">Not Applicable</span>';
+            if ($moqs) {
+              echo ' (' . implode(', ', array_map(fn($c) => htmlspecialchars($c['moq_name']) . ' [' . htmlspecialchars($c['result'] ?? '') . ']', $moqs)) . ')';
+            }
+          } elseif ($moqs) {
+            echo implode(', ', array_map(fn($c) => htmlspecialchars($c['moq_name']) . ' (' . htmlspecialchars($c['result'] ?? '') . ')', $moqs));
+          } else {
+            echo '-';
+          } 
+        ?></td>
       </tr>
     </table>
   </div>
 
   <div class="print-sec-perf">
-    <div class="bio-section-title avoid-break">Performance & Checks</div>
+    <div class="bio-section-title avoid-break">Performance & Checks (<?= $service['record_year'] ?? date('Y') ?>)</div>
     <table class="bio-table avoid-break">
       <tr>
         <td class="lbl">IPFT (1st)</td>
@@ -1403,6 +1521,42 @@ $canEdit = Auth::hasAnyPermission([
       </tr>
     </table>
   </div>
+
+  <?php if (!empty($yearlyHistory)): ?>
+  <div class="print-sec-perf mt-2">
+    <div class="bio-section-title avoid-break">Performance & Yearly Plan History</div>
+    <table class="bio-table avoid-break" style="text-align: center;">
+      <thead>
+        <tr style="background:#f8fafc; font-weight:600;">
+          <th style="padding:4px; border:1px solid #cbd5e1;">Year</th>
+          <th style="padding:4px; border:1px solid #cbd5e1;">IPFT 1st</th>
+          <th style="padding:4px; border:1px solid #cbd5e1;">IPFT 2nd</th>
+          <th style="padding:4px; border:1px solid #cbd5e1;">RET</th>
+          <th style="padding:4px; border:1px solid #cbd5e1;">Speed March</th>
+          <th style="padding:4px; border:1px solid #cbd5e1;">1st Cycle</th>
+          <th style="padding:4px; border:1px solid #cbd5e1;">2nd Cycle</th>
+          <th style="padding:4px; border:1px solid #cbd5e1;">3rd Cycle</th>
+          <th style="padding:4px; border:1px solid #cbd5e1;">4th Cycle</th>
+        </tr>
+      </thead>
+      <tbody>
+        <?php foreach ($yearlyHistory as $yh): ?>
+        <tr>
+          <td style="padding:4px; border:1px solid #cbd5e1; font-weight:600;"><?= htmlspecialchars((string)$yh['record_year']) ?></td>
+          <td style="padding:4px; border:1px solid #cbd5e1;"><?= $display($yh['ipft_1st'] ?? null) ?></td>
+          <td style="padding:4px; border:1px solid #cbd5e1;"><?= $display($yh['ipft_2nd'] ?? null) ?></td>
+          <td style="padding:4px; border:1px solid #cbd5e1;"><?= $display($yh['ret'] ?? null) ?></td>
+          <td style="padding:4px; border:1px solid #cbd5e1;"><?= $display($yh['speed_march'] ?? null) ?></td>
+          <td style="padding:4px; border:1px solid #cbd5e1;"><?= $display($yh['cycle_1'] ?? null) ?></td>
+          <td style="padding:4px; border:1px solid #cbd5e1;"><?= $display($yh['cycle_2'] ?? null) ?></td>
+          <td style="padding:4px; border:1px solid #cbd5e1;"><?= $display($yh['cycle_3'] ?? null) ?></td>
+          <td style="padding:4px; border:1px solid #cbd5e1;"><?= $display($yh['cycle_4'] ?? null) ?></td>
+        </tr>
+        <?php endforeach; ?>
+      </tbody>
+    </table>
+  </div>
+  <?php endif; ?>
 
   <div class="print-sec-special">
     <div class="bio-section-title avoid-break">Special Note</div>
@@ -1473,6 +1627,22 @@ $canEdit = Auth::hasAnyPermission([
 </div>
 
 <script>
+document.addEventListener('DOMContentLoaded', function () {
+  const yphCollapse = document.getElementById('yearlyPlanHistoryCollapse');
+  const yphIcon = document.getElementById('yearlyPlanHistoryIcon');
+  const yphText = document.getElementById('yearlyPlanHistoryText');
+  if (yphCollapse && yphIcon && yphText) {
+    yphCollapse.addEventListener('hidden.bs.collapse', function () {
+      yphIcon.className = 'ti ti-chevron-down me-1';
+      yphText.textContent = 'Expand';
+    });
+    yphCollapse.addEventListener('shown.bs.collapse', function () {
+      yphIcon.className = 'ti ti-chevron-up me-1';
+      yphText.textContent = 'Collapse';
+    });
+  }
+});
+
 window.toggleAllPrintSections = function(checked) {
   ['ps_contact', 'ps_family', 'ps_health', 'ps_training', 'ps_perf', 'ps_special', 'ps_leave', 'ps_social'].forEach(id => {
     const el = document.getElementById(id);

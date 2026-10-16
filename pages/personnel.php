@@ -21,6 +21,7 @@ $filters = [
   'marital_status' => trim((string) ($_GET['marital_status'] ?? '')),
   'platoon_id' => (string) ($_GET['platoon_id'] ?? ''),
   'family_member' => trim((string) ($_GET['family_member'] ?? '')),
+  'civil_education' => trim((string) ($_GET['civil_education'] ?? '')),
 ];
 
 $hasFilters = implode('', $filters) !== '';
@@ -33,6 +34,7 @@ $courses = LookupManager::getAll('courses');
 $moqs = LookupManager::getAll('moqs');
 $cadres = LookupManager::getAll('cadres');
 $platoons = LookupManager::getAll('platoons');
+$civilEducations = LookupManager::getAll('civil_educations');
 $districts = bangladeshDistricts();
 ?>
 <?php include __DIR__ . '/../includes/header.php'; ?>
@@ -189,10 +191,9 @@ $districts = bangladeshDistricts();
                 <label class="form-label small text-secondary fw-medium">MOQ Status</label>
                 <select name="moq_status" class="form-select">
                   <option value="">Any</option>
-                  <option value="qualified" <?= $filters['moq_status'] === 'qualified' ? 'selected' : '' ?>>Qualified
-                  </option>
-                  <option value="not_qualified" <?= $filters['moq_status'] === 'not_qualified' ? 'selected' : '' ?>>Not
-                    Qualified</option>
+                  <option value="qualified" <?= $filters['moq_status'] === 'qualified' ? 'selected' : '' ?>>Qualified</option>
+                  <option value="not_qualified" <?= $filters['moq_status'] === 'not_qualified' ? 'selected' : '' ?>>Not Qualified</option>
+                  <option value="not_applicable" <?= in_array($filters['moq_status'], ['not_applicable', 'na'], true) ? 'selected' : '' ?>>Not Applicable</option>
                 </select>
               </div>
               <div class="col-md-3">
@@ -241,6 +242,17 @@ $districts = bangladeshDistricts();
                   <option value="">Any</option>
                   <option value="Yes" <?= $filters['family_member'] === 'Yes' ? 'selected' : '' ?>>Yes</option>
                   <option value="No" <?= $filters['family_member'] === 'No' ? 'selected' : '' ?>>No</option>
+                </select>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small text-secondary fw-medium">Civil Education</label>
+                <select name="civil_education" class="form-select">
+                  <option value="">All educations</option>
+                  <?php foreach ($civilEducations as $ce): ?>
+                    <option value="<?= htmlspecialchars($ce['name']) ?>" <?= $filters['civil_education'] === $ce['name'] ? 'selected' : '' ?>>
+                      <?= htmlspecialchars($ce['name']) ?>
+                    </option>
+                  <?php endforeach; ?>
                 </select>
               </div>
             </div>
@@ -326,6 +338,7 @@ $districts = bangladeshDistricts();
             <th class="info-col info-col-unit" style="display:none;">Unit</th>
             <th class="info-col info-col-cadre" style="display:none;">Cadre</th>
             <th class="info-col info-col-platoon" style="display:none;">Platoon</th>
+            <th class="info-col info-col-civil_education" style="display:none;">Civil Education</th>
             <th class="info-col info-col-nid" style="display:none;">NID</th>
             <th>Remark</th>
           </tr>
@@ -383,6 +396,8 @@ $districts = bangladeshDistricts();
                 <?= htmlspecialchars($p['cadre_name'] ?? '-') ?></td>
               <td class="info-col info-col-platoon" style="display:none; text-align:center; vertical-align:middle;">
                 <?= htmlspecialchars($p['platoon_name'] ?? '-') ?></td>
+              <td class="info-col info-col-civil_education" style="display:none; text-align:center; vertical-align:middle;">
+                <?= htmlspecialchars($p['civil_education'] ?? 'HSC') ?></td>
               <td class="info-col info-col-nid" style="display:none; text-align:center; vertical-align:middle;">
                 <?= htmlspecialchars($p['nid'] ?? '-') ?></td>
               <td style="text-align: left; vertical-align: middle;">
@@ -468,7 +483,7 @@ $districts = bangladeshDistricts();
     });
 
     // Handle info columns visibility
-    const allInfoFields = ['blood_group', 'district', 'phone', 'appointment', 'unit', 'cadre', 'platoon', 'nid'];
+    const allInfoFields = ['blood_group', 'district', 'phone', 'appointment', 'unit', 'cadre', 'platoon', 'civil_education', 'nid'];
     const selectedFields = options.infoFields || [];
     allInfoFields.forEach(field => {
       const display = selectedFields.includes(field) ? '' : 'none';
@@ -541,6 +556,10 @@ $districts = bangladeshDistricts();
         '<div class="form-check form-switch mb-0">' +
           '<input class="form-check-input info-field-cb" type="checkbox" id="col_platoon" value="platoon">' +
           '<label class="form-check-label small text-dark ms-1" for="col_platoon">Platoon</label>' +
+        '</div>' +
+        '<div class="form-check form-switch mb-0">' +
+          '<input class="form-check-input info-field-cb" type="checkbox" id="col_civil_education" value="civil_education">' +
+          '<label class="form-check-label small text-dark ms-1" for="col_civil_education">Civil Education</label>' +
         '</div>' +
         '<div class="form-check form-switch mb-0">' +
           '<input class="form-check-input info-field-cb" type="checkbox" id="col_nid" value="nid">' +

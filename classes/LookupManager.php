@@ -12,7 +12,7 @@ class LookupManager {
     // Whitelist of allowed tables — NEVER accept a raw table name from user input directly
     private const ALLOWED_TABLES = [
         'ranks', 'units', 'cadres', 'platoons',
-        'blood_groups', 'courses', 'moqs', 'medical_categories', 'appointments'
+        'blood_groups', 'courses', 'moqs', 'medical_categories', 'appointments', 'civil_educations'
     ];
 
     // Maps the referencing FK column for each lookup table, used to block unsafe deletes
@@ -20,7 +20,7 @@ class LookupManager {
         'ranks' => 'rank_id', 'units' => 'unit_id', 'cadres' => 'cadre_id',
         'platoons' => 'platoon_id', 'blood_groups' => 'blood_group_id',
         'courses' => null, 'moqs' => null, 'medical_categories' => null,
-        'appointments' => 'appointment_id',
+        'appointments' => 'appointment_id', 'civil_educations' => null,
     ];
 
     private static function validateTable(string $table): void {
@@ -70,6 +70,19 @@ class LookupManager {
             $check->execute([$id]);
             if ($check->fetchColumn() > 0) {
                 throw new Exception("Cannot delete — this value is still assigned to one or more personnel records.");
+            }
+        }
+
+        if ($table === 'civil_educations') {
+            $nameStmt = $db->prepare("SELECT name FROM civil_educations WHERE id = ?");
+            $nameStmt->execute([$id]);
+            $eduName = $nameStmt->fetchColumn();
+            if ($eduName) {
+                $check = $db->prepare("SELECT COUNT(*) FROM personnel_education WHERE civil_education = ?");
+                $check->execute([$eduName]);
+                if ($check->fetchColumn() > 0) {
+                    throw new Exception("Cannot delete — this civil education is still assigned to one or more personnel records.");
+                }
             }
         }
 

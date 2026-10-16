@@ -48,42 +48,9 @@ $onLeaveCount = (int) $db->query("SELECT COUNT(*) FROM personnel p WHERE EXISTS 
 $familyMembers = (int) $db->query("SELECT COUNT(*) FROM personnel_family WHERE family_member = 'Yes'")->fetchColumn();
 
 // ── MOQ Qualification Data ──
-$moqQualifiedCount = 0;
-$moqNotQualifiedCount = 0;
-
-$personnelRanks = $db->query("SELECT p.id, r.name AS rank_name FROM personnel p JOIN ranks r ON p.rank_id = r.id")->fetchAll(PDO::FETCH_ASSOC);
-$allMoqs = $db->query("SELECT pm.personnel_id, m.name AS moq_name, pm.result, pm.is_bypass FROM personnel_moqs pm JOIN moqs m ON pm.moq_id = m.id")->fetchAll(PDO::FETCH_ASSOC);
-$allCourses = $db->query("SELECT pc.personnel_id, c.name AS course_name, pc.result FROM personnel_courses pc JOIN courses c ON pc.course_id = c.id")->fetchAll(PDO::FETCH_ASSOC);
-$allCadres = $db->query("SELECT pc.personnel_id, c.name AS cadre_name FROM personnel_cadres pc JOIN cadres c ON pc.cadre_id = c.id")->fetchAll(PDO::FETCH_ASSOC);
-
-$personnelMoqMap = [];
-foreach ($allMoqs as $row) {
-  $personnelMoqMap[$row['personnel_id']][] = $row;
-}
-$personnelCourseMap = [];
-foreach ($allCourses as $row) {
-  $personnelCourseMap[$row['personnel_id']][] = $row;
-}
-$personnelCadreMap = [];
-foreach ($allCadres as $row) {
-  $personnelCadreMap[$row['personnel_id']][] = $row;
-}
-
-foreach ($personnelRanks as $p) {
-  $pId = (int)$p['id'];
-  $pMoqs = $personnelMoqMap[$pId] ?? [];
-  $pCourses = $personnelCourseMap[$pId] ?? [];
-  $pCadres = $personnelCadreMap[$pId] ?? [];
-
-  $status = Personnel::checkPromotionStatus($p['rank_name'] ?? '', $pMoqs, $pCourses, $pCadres);
-  if ($status['has_logic']) {
-    if ($status['is_qualified']) {
-      $moqQualifiedCount++;
-    } else {
-      $moqNotQualifiedCount++;
-    }
-  }
-}
+$moqSummary = Personnel::getPromotionQualificationCounts();
+$moqQualifiedCount = $moqSummary['qualified_count'];
+$moqNotQualifiedCount = $moqSummary['not_qualified_count'];
 
 
 // ── Absent State Data ──
@@ -216,7 +183,7 @@ foreach ($ipftPersonnel as $p) {
     $type1 = match($res1) {
         'PASS' => 'pass',
         'FAIL' => 'fail',
-        'NOT ATTENDING' => 'na',
+        'NOT ATTENDING', 'NOT APPLICABLE' => 'na',
         default => 'pending'
     };
     $ipftSummary['1st'][$type1]++;
@@ -228,7 +195,7 @@ foreach ($ipftPersonnel as $p) {
     $type2 = match($res2) {
         'PASS' => 'pass',
         'FAIL' => 'fail',
-        'NOT ATTENDING' => 'na',
+        'NOT ATTENDING', 'NOT APPLICABLE' => 'na',
         default => 'pending'
     };
     $ipftSummary['2nd'][$type2]++;
@@ -247,8 +214,8 @@ $passRate1 = $ipftSummary['1st']['total'] > 0 ? round(($ipftSummary['1st']['pass
 $passRate2 = $ipftSummary['2nd']['total'] > 0 ? round(($ipftSummary['2nd']['pass'] / $ipftSummary['2nd']['total']) * 100) : 0;
 
 // ── Currently On Leave ──
-$currentlyOnLeave = $db->query("SELECT p.id, p.name, p.personal_number, p.photo_path, r.name AS rank_name, pl.leave_type, pl.from_date, pl.to_date FROM personnel p JOIN personnel_leaves pl ON p.id = pl.personnel_id JOIN ranks r ON p.rank_id = r.id WHERE CURRENT_DATE >= pl.from_date AND CURRENT_DATE <= pl.to_date ORDER BY pl.to_date LIMIT 5")->fetchAll();
-$allOnLeave = $db->query("SELECT p.id, p.name, p.personal_number, p.photo_path, r.name AS rank_name, pl.leave_type, pl.from_date, pl.to_date FROM personnel p JOIN personnel_leaves pl ON p.id = pl.personnel_id JOIN ranks r ON p.rank_id = r.id WHERE CURRENT_DATE >= pl.from_date AND CURRENT_DATE <= pl.to_date ORDER BY pl.to_date")->fetchAll();
+$currentlyOnLeave = $db->query("SELECT p.id, p.name, p.personal_number, p.photo_path, r.name AS rank_name, pl.leave_type, pl.from_date, pl.to_date FROM personnel p JOIN personnel_leaves pl ON p.id = pl.personnel_id LEFT JOIN ranks r ON p.rank_id = r.id WHERE CURRENT_DATE >= pl.from_date AND CURRENT_DATE <= pl.to_date ORDER BY pl.to_date ASC, p.id ASC")->fetchAll();
+$allOnLeave = $currentlyOnLeave;
 ?>
 <?php include __DIR__ . '/../includes/header.php'; ?>
 
@@ -848,8 +815,43 @@ $allOnLeave = $db->query("SELECT p.id, p.name, p.personal_number, p.photo_path, 
     animation-delay: 0.45s;
   }
 
-  .delay-10 {
-    animation-delay: 0.5s;
+  @media print {
+    #onLeaveSection,
+    #onLeaveSection .premium-table-container,
+    #onLeaveSection .premium-table-inner {
+      width: 100% !important;
+      max-width: 100% !important;
+      overflow: visible !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+
+    #onLeaveSection table.leave-print-table {
+      width: 100% !important;
+      max-width: 100% !important;
+      table-layout: fixed !important;
+      font-size: 9.5pt !important;
+      border-collapse: collapse !important;
+      margin: 0 auto !important;
+    }
+
+    #onLeaveSection table.leave-print-table th,
+    #onLeaveSection table.leave-print-table td {
+      white-space: normal !important;
+      word-break: break-word !important;
+      padding: 4px 3px !important;
+      font-size: 9pt !important;
+      line-height: 1.25 !important;
+      border: 1px solid #000 !important;
+    }
+
+    #onLeaveSection table.leave-print-table th {
+      font-size: 8.5pt !important;
+      font-weight: 700 !important;
+      text-transform: uppercase !important;
+      background: #f1f5f9 !important;
+      text-align: center !important;
+    }
   }
 </style>
 
@@ -900,7 +902,7 @@ $allOnLeave = $db->query("SELECT p.id, p.name, p.personal_number, p.photo_path, 
         </div>
       </div>
       <div class="col">
-        <div class="stat-card sc-moq-no animate-in delay-5">
+        <div class="stat-card sc-moq-no animate-in delay-5" style="cursor: pointer;" onclick="location.href='personnel.php?moq_status=not_qualified'" title="View MOQ Not Qualified Personnel">
           <div class="stat-value"><?= sprintf('%02d', $moqNotQualifiedCount) ?></div>
           <div class="stat-label" title="MOQ NOT QUAL">MOQ NOT QUAL</div>
           <i class="ti ti-alert-triangle stat-icon"></i>
@@ -1307,7 +1309,10 @@ $allOnLeave = $db->query("SELECT p.id, p.name, p.personal_number, p.photo_path, 
       <div class="col-12" id="onLeaveSection">
         <div class="chart-card animate-in delay-6" style="border: none; box-shadow: none; background: transparent; padding: 0;">
           <div class="chart-card-header d-flex align-items-center justify-content-between px-1 pb-3 pt-0">
-            <h6 style="font-size:1.1rem; letter-spacing:-0.02em;"><i class="ti ti-calendar-off me-2" style="color:#f59e0b"></i>Currently On Leave</h6>
+            <h6 style="font-size:1.1rem; letter-spacing:-0.02em;">
+              <i class="ti ti-calendar-off me-2" style="color:#f59e0b"></i>Currently On Leave 
+              <span class="badge bg-warning-subtle text-warning border ms-1" style="font-size:0.75rem;"><?= count($currentlyOnLeave) ?></span>
+            </h6>
             <div class="d-flex align-items-center gap-2">
               <?php if (Auth::hasPermission('leave_seniority')): ?>
               <a href="leave_seniority.php" class="btn-print no-print text-decoration-none"><i class="ti ti-calendar-stats"></i> Leave Seniority</a>
@@ -1317,10 +1322,11 @@ $allOnLeave = $db->query("SELECT p.id, p.name, p.personal_number, p.photo_path, 
               <?php endif; ?>
             </div>
           </div>
-          <div class="table-responsive no-print" style="background: #fff; border-radius: 12px; border: 1px solid #eee; overflow: hidden;">
+          <div class="table-responsive no-print" style="background: #fff; border-radius: 12px; border: 1px solid #eee; overflow: hidden; max-height: 520px; overflow-y: auto;">
             <table class="table table-hover mb-0">
-              <thead>
+              <thead style="position: sticky; top: 0; background: #ffffff; z-index: 2; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
                 <tr>
+                  <th style="width: 45px; text-align: center;">SL</th>
                   <th>Photo</th>
                   <th>Name</th>
                   <th>Rank</th>
@@ -1329,11 +1335,15 @@ $allOnLeave = $db->query("SELECT p.id, p.name, p.personal_number, p.photo_path, 
                 </tr>
               </thead>
               <tbody>
-                <?php foreach ($currentlyOnLeave as $lv): ?>
+                <?php foreach ($currentlyOnLeave as $idx => $lv): ?>
                   <tr style="cursor:pointer" onclick="location.href='profile.php?id=<?= $lv['id'] ?>'">
+                    <td class="text-center text-muted fw-medium" style="font-size: 0.82rem;"><?= $idx + 1 ?></td>
                     <td><img src="<?= htmlspecialchars(personnelPhotoUrl($lv['photo_path'] ?? null)) ?>"
                         class="person-avatar-sm"></td>
-                    <td class="fw-semibold"><?= htmlspecialchars($lv['name']) ?></td>
+                    <td class="fw-semibold">
+                      <?= htmlspecialchars($lv['name']) ?>
+                      <div class="text-muted fw-normal" style="font-size:0.75rem;">No: <?= htmlspecialchars($lv['personal_number']) ?></div>
+                    </td>
                     <td><?= htmlspecialchars($lv['rank_name'] ?? '-') ?></td>
                     <td><span class="leave-type-badge"><?= htmlspecialchars($lv['leave_type'] === 'Pre Leave' ? 'P/L' : trim(str_ireplace('leave', '', $lv['leave_type'] ?? '-'))) ?></span></td>
                     <td class="text-muted"><?= date('d/m/y', strtotime($lv['to_date'])) ?></td>
@@ -1341,7 +1351,7 @@ $allOnLeave = $db->query("SELECT p.id, p.name, p.personal_number, p.photo_path, 
                 <?php endforeach; ?>
                 <?php if (empty($currentlyOnLeave)): ?>
                   <tr>
-                    <td colspan="5" class="text-center text-muted py-4">No personnel currently on leave.</td>
+                    <td colspan="6" class="text-center text-muted py-4">No personnel currently on leave.</td>
                   </tr>
                 <?php endif; ?>
               </tbody>
@@ -1352,28 +1362,30 @@ $allOnLeave = $db->query("SELECT p.id, p.name, p.personal_number, p.photo_path, 
           <div class="print-only d-none">
             <div class="premium-table-container">
               <div class="premium-table-inner">
-                <table class="table premium-table align-middle">
+                <table class="table premium-table leave-print-table align-middle">
                   <thead>
                     <tr>
-                      <th>P No</th>
-                      <th>Rank</th>
-                      <th>Name</th>
-                      <th>From</th>
-                      <th>To</th>
-                      <th>Leave Type</th>
-                      <th>Remark</th>
+                      <th style="width: 5%; text-align: center;">SL</th>
+                      <th style="width: 12%; text-align: center;">P No</th>
+                      <th style="width: 10%; text-align: center;">Rank</th>
+                      <th style="width: 27%; text-align: left;">Name</th>
+                      <th style="width: 13%; text-align: center;">From</th>
+                      <th style="width: 13%; text-align: center;">To</th>
+                      <th style="width: 12%; text-align: center;">Leave Type</th>
+                      <th style="width: 8%; text-align: center;">Remark</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <?php foreach ($allOnLeave as $l): ?>
+                    <?php foreach ($allOnLeave as $idx => $l): ?>
                     <tr>
-                      <td><?= htmlspecialchars($l['personal_number']) ?></td>
-                      <td><?= htmlspecialchars($l['rank_name'] ?? '-') ?></td>
-                      <td><?= htmlspecialchars($l['name']) ?></td>
-                      <td><?= htmlspecialchars(date('d M Y', strtotime($l['from_date']))) ?></td>
-                      <td><?= htmlspecialchars(date('d M Y', strtotime($l['to_date']))) ?></td>
-                      <td><?= htmlspecialchars($l['leave_type'] === 'Pre Leave' ? 'P/L' : trim(str_ireplace('leave', '', $l['leave_type'] ?? '-'))) ?></td>
-                      <td></td>
+                      <td style="text-align: center; font-weight: 500;"><?= $idx + 1 ?></td>
+                      <td style="text-align: center;"><?= htmlspecialchars($l['personal_number']) ?></td>
+                      <td style="text-align: center;"><?= htmlspecialchars($l['rank_name'] ?? '-') ?></td>
+                      <td style="text-align: left; font-weight: 600;"><?= htmlspecialchars($l['name']) ?></td>
+                      <td style="text-align: center;"><?= htmlspecialchars(date('d M Y', strtotime($l['from_date']))) ?></td>
+                      <td style="text-align: center;"><?= htmlspecialchars(date('d M Y', strtotime($l['to_date']))) ?></td>
+                      <td style="text-align: center;"><?= htmlspecialchars($l['leave_type'] === 'Pre Leave' ? 'P/L' : trim(str_ireplace('leave', '', $l['leave_type'] ?? '-'))) ?></td>
+                      <td style="text-align: center;"></td>
                     </tr>
                     <?php endforeach; ?>
                   </tbody>
@@ -1503,7 +1515,9 @@ $allOnLeave = $db->query("SELECT p.id, p.name, p.personal_number, p.photo_path, 
             '<div style="text-align:left; width: 90%; margin: 10px auto 0; font-size:14px;">Date (optional):</div>' +
             '<input type="date" id="printDate" class="swal2-input" style="max-width: 90%; margin: 5px auto 10px;">' +
             '<div style="text-align:left; width: 90%; margin: 10px auto 0; font-size:14px;">Page Size:</div>' +
-            '<select id="printPageSize" class="swal2-select" style="max-width: 90%; margin: 5px auto 10px;"><option value="A4">A4</option><option value="Legal">Legal</option><option value="Letter">Letter</option></select>',
+            '<select id="printPageSize" class="swal2-select" style="max-width: 90%; margin: 5px auto 10px;"><option value="A4">A4</option><option value="Legal">Legal</option><option value="Letter">Letter</option></select>' +
+            '<div style="text-align:left; width: 90%; margin: 10px auto 0; font-size:14px;">Orientation:</div>' +
+            '<select id="printOrientation" class="swal2-select" style="max-width: 90%; margin: 5px auto 10px;"><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select>',
         focusConfirm: false,
         showCancelButton: true,
         confirmButtonText: '<i class="ti ti-printer"></i> Print',
@@ -1512,7 +1526,8 @@ $allOnLeave = $db->query("SELECT p.id, p.name, p.personal_number, p.photo_path, 
                 heading: document.getElementById('printHeading').value,
                 subHeading: document.getElementById('printSubHeading').value,
                 date: document.getElementById('printDate').value,
-                pageSize: document.getElementById('printPageSize').value
+                pageSize: document.getElementById('printPageSize').value,
+                orientation: document.getElementById('printOrientation').value
             }
         }
     }).then((result) => {
@@ -1522,6 +1537,7 @@ $allOnLeave = $db->query("SELECT p.id, p.name, p.personal_number, p.photo_path, 
         let subHeading = result.value.subHeading;
         let dateVal = result.value.date;
         let pageSize = result.value.pageSize;
+        let orientation = result.value.orientation || 'portrait';
         
         let dynStyle = document.getElementById('dynamicPrintStyle');
         if(!dynStyle) {
@@ -1529,7 +1545,7 @@ $allOnLeave = $db->query("SELECT p.id, p.name, p.personal_number, p.photo_path, 
             dynStyle.id = 'dynamicPrintStyle';
             document.head.appendChild(dynStyle);
         }
-        dynStyle.innerHTML = `@page { size: ${pageSize} portrait; margin: 0.5in 0.5in 0.5in 0.8in; }`;
+        dynStyle.innerHTML = `@page { size: ${pageSize} ${orientation}; margin: 0.4in; }`;
         
         let headingEl = document.getElementById("customPrintHeading");
         if (!headingEl) {

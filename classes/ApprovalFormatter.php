@@ -11,7 +11,7 @@ class ApprovalFormatter {
     private static function injectMissingPermittedFields(array $data, array $perms): array {
         $map = [
             'edit_personnel_course' => ['course_id' => [], 'course_result' => []],
-            'edit_personnel_moqs' => ['moq_id' => [], 'moq_result' => [], 'moq_bypass' => []],
+            'edit_personnel_moqs' => ['moq_id' => [], 'moq_result' => [], 'moq_bypass' => [], 'moq_not_applicable' => '0'],
             'edit_personnel_cadres' => ['cadre_ids' => []],
             'edit_personnel_education' => ['civil_education' => ''],
             'edit_personnel_service' => ['admission_date' => '', 'retirement_date' => '', 'un_mission' => '', 'punishment_note' => ''],
@@ -147,6 +147,10 @@ class ApprovalFormatter {
             return $mapped;
         }
         
+        if ($key === 'moq_not_applicable' || $key === 'moq_na') {
+            return !empty($val) ? 'Not Applicable' : 'Applicable';
+        }
+        
         return $val;
     }
 
@@ -204,7 +208,8 @@ class ApprovalFormatter {
 
     private static function renderEdit(int $personnelId, array $data): string {
         $person = Personnel::find($personnelId);
-        $service = Personnel::getService($personnelId);
+        $targetYear = !empty($data['record_year']) ? (int)$data['record_year'] : (!empty($data['service_year']) ? (int)$data['service_year'] : null);
+        $service = Personnel::getService($personnelId, $targetYear);
         $family = Personnel::getFamily($personnelId);
         $health = Personnel::getHealth($personnelId);
         $notes = Personnel::getNotes($personnelId);
@@ -278,7 +283,8 @@ class ApprovalFormatter {
 
     private static function renderEditText(int $personnelId, array $data): string {
         $person = Personnel::find($personnelId);
-        $service = Personnel::getService($personnelId);
+        $targetYear = !empty($data['record_year']) ? (int)$data['record_year'] : (!empty($data['service_year']) ? (int)$data['service_year'] : null);
+        $service = Personnel::getService($personnelId, $targetYear);
         $family = Personnel::getFamily($personnelId);
         $health = Personnel::getHealth($personnelId);
         $notes = Personnel::getNotes($personnelId);
@@ -472,6 +478,10 @@ class ApprovalFormatter {
         if (is_array($family) && array_key_exists($key, $family)) return $family[$key];
         if (is_array($health) && array_key_exists($key, $health)) return $health[$key];
         
+        if ($key === 'moq_not_applicable' || $key === 'moq_na') {
+            return !empty($person['moq_na']) ? '1' : '0';
+        }
+
         if ($key === 'family_member') return 'No';
         
         if ($key === 'special_note' || $key === 'note') return $notes['note'] ?? '';

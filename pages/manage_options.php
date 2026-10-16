@@ -9,8 +9,8 @@ $withSidebar = true;
 $categories = [
     'ranks' => 'Ranks', 'units' => 'Units', 'cadres' => 'Cadres',
     'platoons' => 'Platoons', 'blood_groups' => 'Blood groups',
-  'courses' => 'Courses', 'moqs' => 'MOQs', 'medical_categories' => 'Medical categories',
-  'appointments' => 'Appointments',
+    'courses' => 'Courses', 'moqs' => 'MOQs', 'medical_categories' => 'Medical categories',
+    'appointments' => 'Appointments', 'civil_educations' => 'Civil Educations',
 ];
 
 $table = $_GET['table'] ?? 'ranks';

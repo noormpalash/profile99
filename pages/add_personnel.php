@@ -62,6 +62,7 @@ $medicalCategories = LookupManager::getAll('medical_categories');
 $moqs = LookupManager::getAll('moqs');
 $districts = bangladeshDistricts();
 $appointments = LookupManager::getAll('appointments');
+$civilEducations = LookupManager::getAll('civil_educations');
 ?>
 <?php include __DIR__ . '/../includes/header.php'; ?>
 
@@ -226,7 +227,21 @@ $appointments = LookupManager::getAll('appointments');
         </div>
       </div>
 
-      <h6 class="mb-3">Courses & Training</h6>
+      <h6 class="mb-3">Education & Training</h6>
+      <div class="row mb-3">
+        <div class="col-md-4">
+          <label class="form-label small fw-bold">Civil Education</label>
+          <select name="civil_education" class="form-select">
+            <?php foreach ($civilEducations as $ce): ?>
+              <?php $selected = (isset($old['civil_education']) ? ($old['civil_education'] === $ce['name']) : ($ce['name'] === 'HSC')) ? 'selected' : ''; ?>
+              <option value="<?= htmlspecialchars($ce['name']) ?>" <?= $selected ?>>
+                <?= htmlspecialchars($ce['name']) ?>
+              </option>
+            <?php endforeach; ?>
+          </select>
+          <div class="form-text text-muted" style="font-size:0.75rem;">Default: HSC. Note: Personnel with "SSC" are not MOQ Qualified.</div>
+        </div>
+      </div>
       <div class="row mb-3">
         <div class="col-md-4">
           <label class="form-label small fw-bold">Cadres (multiple)</label>
@@ -292,7 +307,15 @@ $appointments = LookupManager::getAll('appointments');
         </div>
 
         <div class="col-md-4">
-          <label class="form-label small fw-bold">MOQ (select & enter result)</label>
+          <div class="d-flex align-items-center justify-content-between mb-1">
+            <label class="form-label small fw-bold mb-0">MOQ (select & enter result)</label>
+            <div class="form-check form-switch mb-0" title="Check this option if MOQ is Not Applicable for this personnel">
+              <input class="form-check-input" type="checkbox" name="moq_not_applicable" value="1" id="moq_na_add_chk" <?= !empty($old['moq_not_applicable']) || !empty($old['moq_na']) ? 'checked' : '' ?>>
+              <label class="form-check-label small fw-semibold text-secondary" for="moq_na_add_chk" style="font-size:0.78rem; cursor:pointer;">
+                Not Applicable
+              </label>
+            </div>
+          </div>
           <?php
           $oldMoqs = (array) ($old['moq_id'] ?? []);
           $oldMoqResults = (array) ($old['moq_result'] ?? []);
@@ -373,34 +396,40 @@ $appointments = LookupManager::getAll('appointments');
             value="<?= htmlspecialchars($old['punishment_note'] ?? '') ?>">
         </div>
       </div>
+      <input type="hidden" name="record_year" value="<?= htmlspecialchars((string)($old['record_year'] ?? date('Y'))) ?>">
+      <div class="d-flex align-items-center gap-2 mb-3 mt-4 pb-2 border-bottom">
+        <h6 class="mb-0 text-primary"><i class="ti ti-calendar-event me-1"></i> Annual Performance & Yearly Plan</h6>
+        <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Year: <?= htmlspecialchars((string)($old['record_year'] ?? date('Y'))) ?></span>
+      </div>
       <div class="row mb-3">
         <div class="col-md-3">
           <label class="form-label small">IPFT (1st Annual)</label>
           <select name="ipft_1st" class="form-select">
             <option value="">Select...</option>
-            <option value="PASS" <?= ($old['ipft_1st'] ?? '') === 'PASS' ? 'selected' : '' ?>>PASS</option>
-            <option value="FAIL" <?= ($old['ipft_1st'] ?? '') === 'FAIL' ? 'selected' : '' ?>>FAIL</option>
-            <option value="NOT ATTENDING" <?= ($old['ipft_1st'] ?? '') === 'NOT ATTENDING' ? 'selected' : '' ?>>NOT
-              ATTENDING</option>
+            <option value="PASS" <?= strtoupper(trim((string)($old['ipft_1st'] ?? ''))) === 'PASS' ? 'selected' : '' ?>>PASS</option>
+            <option value="FAIL" <?= strtoupper(trim((string)($old['ipft_1st'] ?? ''))) === 'FAIL' ? 'selected' : '' ?>>FAIL</option>
+            <option value="NOT ATTENDING" <?= strtoupper(trim((string)($old['ipft_1st'] ?? ''))) === 'NOT ATTENDING' ? 'selected' : '' ?>>NOT ATTENDING</option>
+            <option value="NOT APPLICABLE" <?= in_array(strtoupper(trim((string)($old['ipft_1st'] ?? ''))), ['NOT APPLICABLE', 'NOT_APPLICABLE', 'NA', 'N/A'], true) ? 'selected' : '' ?>>NOT APPLICABLE</option>
           </select>
         </div>
         <div class="col-md-3">
           <label class="form-label small">IPFT (2nd Annual)</label>
           <select name="ipft_2nd" class="form-select">
             <option value="">Select...</option>
-            <option value="PASS" <?= ($old['ipft_2nd'] ?? '') === 'PASS' ? 'selected' : '' ?>>PASS</option>
-            <option value="FAIL" <?= ($old['ipft_2nd'] ?? '') === 'FAIL' ? 'selected' : '' ?>>FAIL</option>
-            <option value="NOT ATTENDING" <?= ($old['ipft_2nd'] ?? '') === 'NOT ATTENDING' ? 'selected' : '' ?>>NOT
-              ATTENDING</option>
+            <option value="PASS" <?= strtoupper(trim((string)($old['ipft_2nd'] ?? ''))) === 'PASS' ? 'selected' : '' ?>>PASS</option>
+            <option value="FAIL" <?= strtoupper(trim((string)($old['ipft_2nd'] ?? ''))) === 'FAIL' ? 'selected' : '' ?>>FAIL</option>
+            <option value="NOT ATTENDING" <?= strtoupper(trim((string)($old['ipft_2nd'] ?? ''))) === 'NOT ATTENDING' ? 'selected' : '' ?>>NOT ATTENDING</option>
+            <option value="NOT APPLICABLE" <?= in_array(strtoupper(trim((string)($old['ipft_2nd'] ?? ''))), ['NOT APPLICABLE', 'NOT_APPLICABLE', 'NA', 'N/A'], true) ? 'selected' : '' ?>>NOT APPLICABLE</option>
           </select>
         </div>
         <div class="col-md-3">
           <label class="form-label small">RET (Result)</label>
           <select name="ret" class="form-select">
             <option value="">Select...</option>
-            <option value="PASS" <?= ($old['ret'] ?? '') === 'PASS' ? 'selected' : '' ?>>PASS</option>
-            <option value="FAIL" <?= ($old['ret'] ?? '') === 'FAIL' ? 'selected' : '' ?>>FAIL</option>
-            <option value="NOT ATTENDING" <?= ($old['ret'] ?? '') === 'NOT ATTENDING' ? 'selected' : '' ?>>NOT ATTENDING</option>
+            <option value="PASS" <?= strtoupper(trim((string)($old['ret'] ?? ''))) === 'PASS' ? 'selected' : '' ?>>PASS</option>
+            <option value="FAIL" <?= strtoupper(trim((string)($old['ret'] ?? ''))) === 'FAIL' ? 'selected' : '' ?>>FAIL</option>
+            <option value="NOT ATTENDING" <?= strtoupper(trim((string)($old['ret'] ?? ''))) === 'NOT ATTENDING' ? 'selected' : '' ?>>NOT ATTENDING</option>
+            <option value="NOT APPLICABLE" <?= in_array(strtoupper(trim((string)($old['ret'] ?? ''))), ['NOT APPLICABLE', 'NOT_APPLICABLE', 'NA', 'N/A'], true) ? 'selected' : '' ?>>NOT APPLICABLE</option>
           </select>
         </div>
         <div class="col-md-3">
@@ -710,6 +739,23 @@ $appointments = LookupManager::getAll('appointments');
         toggleMoq(!chk.checked);
       });
     });
+
+    const moqNaAddChk = document.getElementById('moq_na_add_chk');
+    const moqsAddList = document.getElementById('moqs_add_list');
+    function updateMoqNaAdd() {
+      if (!moqNaAddChk || !moqsAddList) return;
+      if (moqNaAddChk.checked) {
+        moqsAddList.style.opacity = '0.45';
+        moqsAddList.style.pointerEvents = 'none';
+      } else {
+        moqsAddList.style.opacity = '1';
+        moqsAddList.style.pointerEvents = 'auto';
+      }
+    }
+    if (moqNaAddChk) {
+      moqNaAddChk.addEventListener('change', updateMoqNaAdd);
+      updateMoqNaAdd();
+    }
 
     const familyMemberSelect = document.getElementById('family_member_select');
     const livingStatusContainer = document.getElementById('living_status_container');

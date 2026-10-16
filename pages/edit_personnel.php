@@ -84,10 +84,26 @@ $bloodGroups = LookupManager::getAll('blood_groups');
 $medicalCategories = LookupManager::getAll('medical_categories');
 $districts = bangladeshDistricts();
 $appointments = LookupManager::getAll('appointments');
+$civilEducations = LookupManager::getAll('civil_educations');
 
 $course = Personnel::getCourse($id);
 $education = Personnel::getEducation($id);
-$service = Personnel::getService($id);
+$currentCivilEdu = $education['civil_education'] ?? 'HSC';
+$eduNames = array_column($civilEducations, 'name');
+if (!empty($currentCivilEdu) && !in_array($currentCivilEdu, $eduNames, true)) {
+  $civilEducations[] = ['id' => 0, 'name' => $currentCivilEdu];
+}
+$selectedYear = (int)($_GET['year'] ?? ($_POST['record_year'] ?? date('Y')));
+$service = Personnel::getService($id, $selectedYear);
+$yearlyHistory = Personnel::getYearlyHistory($id);
+$currentYear = (int)date('Y');
+$historyYears = array_map(fn($h) => (int)$h['record_year'], $yearlyHistory);
+$availableYears = array_unique(array_merge(
+    range($currentYear + 10, $currentYear - 10),
+    $historyYears,
+    [$selectedYear]
+));
+rsort($availableYears);
 $family = Personnel::getFamily($id);
 $health = Personnel::getHealth($id);
 $socialLinks = Personnel::getSocialLinks($id);
@@ -281,8 +297,24 @@ foreach ($socialLinks as $link) {
         </div>
       <?php endif; ?>
 
-      <?php if (Auth::hasPermission('edit_personnel_course') || Auth::hasPermission('edit_personnel_cadres') || Auth::hasPermission('edit_personnel_moqs')): ?>
-        <h6 class="mb-3">Courses & Training</h6>
+      <?php if (Auth::hasPermission('edit_personnel_course') || Auth::hasPermission('edit_personnel_cadres') || Auth::hasPermission('edit_personnel_moqs') || Auth::hasPermission('edit_personnel_education')): ?>
+        <h6 class="mb-3">Education & Training</h6>
+        <?php if (Auth::hasPermission('edit_personnel_education')): ?>
+          <div class="row mb-3">
+            <div class="col-md-4">
+              <label class="form-label small fw-bold">Civil Education</label>
+              <select name="civil_education" class="form-select">
+                <?php foreach ($civilEducations as $ce): ?>
+                  <?php $selected = (isset($_POST['civil_education']) ? ($_POST['civil_education'] === $ce['name']) : ($currentCivilEdu === $ce['name'])) ? 'selected' : ''; ?>
+                  <option value="<?= htmlspecialchars($ce['name']) ?>" <?= $selected ?>>
+                    <?= htmlspecialchars($ce['name']) ?>
+                  </option>
+                <?php endforeach; ?>
+              </select>
+              <div class="form-text text-muted" style="font-size:0.75rem;">Default: HSC. Note: Personnel with "SSC" are not MOQ Qualified.</div>
+            </div>
+          </div>
+        <?php endif; ?>
         <div class="row mb-3">
           <?php if (Auth::hasPermission('edit_personnel_cadres')): ?>
             <div class="col-md-4">
@@ -353,7 +385,15 @@ foreach ($socialLinks as $link) {
 
           <?php if (Auth::hasPermission('edit_personnel_moqs')): ?>
             <div class="col-md-4">
-              <label class="form-label small fw-bold">MOQ (select multiple & enter result)</label>
+              <div class="d-flex align-items-center justify-content-between mb-1">
+                <label class="form-label small fw-bold mb-0">MOQ (select & enter result)</label>
+                <div class="form-check form-switch mb-0" title="Check this option if MOQ is Not Applicable for this personnel">
+                  <input class="form-check-input" type="checkbox" name="moq_not_applicable" value="1" id="moq_na_edit_chk" <?= !empty($person['moq_na']) ? 'checked' : '' ?>>
+                  <label class="form-check-label small fw-semibold text-secondary" for="moq_na_edit_chk" style="font-size:0.78rem; cursor:pointer;">
+                    Not Applicable
+                  </label>
+                </div>
+              </div>
               <?php
               $existingMoqs = Personnel::getMoqs($id);
               $existingMoqMap = [];
@@ -436,35 +476,60 @@ foreach ($socialLinks as $link) {
           </div>
         <?php endif; ?>
 
+        <?php if (Auth::hasPermission('edit_personnel_ipft') || Auth::hasPermission('edit_personnel_yearly_plan')): ?>
+          <input type="hidden" name="record_year" value="<?= $selectedYear ?>">
+          <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 mt-4 pb-2 border-bottom gap-2">
+            <div class="d-flex align-items-center gap-2">
+              <h6 class="mb-0 text-primary"><i class="ti ti-calendar-event me-1"></i> Annual Performance & Yearly Plan</h6>
+              <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Editing Year: <?= $selectedYear ?></span>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              <label class="form-label small mb-0 text-muted">Year:</label>
+              <select class="form-select form-select-sm" style="width: 155px;" onchange="if(this.value==='custom'){ let y = prompt('Enter year (e.g. 2035):'); if(y && !isNaN(y) && parseInt(y) >= 1950 && parseInt(y) <= 2100) { window.location.href='edit_personnel.php?id=<?= $id ?>&year='+parseInt(y); } else { this.value='<?= $selectedYear ?>'; } } else { window.location.href='edit_personnel.php?id=<?= $id ?>&year='+this.value; }">
+                <?php foreach ($availableYears as $yr): ?>
+                  <option value="<?= $yr ?>" <?= $yr === $selectedYear ? 'selected' : '' ?>>
+                    <?= $yr ?><?= $yr === (int)date('Y') ? ' (Current)' : '' ?>
+                  </option>
+                <?php endforeach; ?>
+                <option value="custom">+ Other Year...</option>
+              </select>
+              <button type="button" class="btn btn-sm btn-outline-secondary" title="Clear this year's scores" onclick="if(confirm('Clear all performance and cycle inputs for <?= $selectedYear ?>?')){ document.querySelectorAll('[name=ipft_1st], [name=ipft_2nd], [name=ret], [name=speed_march], [name=cycle_1], [name=cycle_2], [name=cycle_3], [name=cycle_4]').forEach(el => el.value = ''); }">
+                <i class="ti ti-rotate me-1"></i>Reset Year
+              </button>
+            </div>
+          </div>
+        <?php endif; ?>
+
         <?php if (Auth::hasPermission('edit_personnel_ipft')): ?>
           <div class="row mb-3">
             <div class="col-md-3">
               <label class="form-label small">IPFT (1st Annual)</label>
               <select name="ipft_1st" class="form-select">
                 <option value="">Select...</option>
-                <option value="PASS" <?= ($service['ipft_1st'] ?? '') === 'PASS' ? 'selected' : '' ?>>PASS</option>
-                <option value="FAIL" <?= ($service['ipft_1st'] ?? '') === 'FAIL' ? 'selected' : '' ?>>FAIL</option>
-                <option value="NOT ATTENDING" <?= ($service['ipft_1st'] ?? '') === 'NOT ATTENDING' ? 'selected' : '' ?>>NOT
-                  ATTENDING</option>
+                <option value="PASS" <?= strtoupper(trim((string)($service['ipft_1st'] ?? ''))) === 'PASS' ? 'selected' : '' ?>>PASS</option>
+                <option value="FAIL" <?= strtoupper(trim((string)($service['ipft_1st'] ?? ''))) === 'FAIL' ? 'selected' : '' ?>>FAIL</option>
+                <option value="NOT ATTENDING" <?= strtoupper(trim((string)($service['ipft_1st'] ?? ''))) === 'NOT ATTENDING' ? 'selected' : '' ?>>NOT ATTENDING</option>
+                <option value="NOT APPLICABLE" <?= in_array(strtoupper(trim((string)($service['ipft_1st'] ?? ''))), ['NOT APPLICABLE', 'NOT_APPLICABLE', 'N/A', 'NA'], true) ? 'selected' : '' ?>>NOT APPLICABLE</option>
               </select>
             </div>
             <div class="col-md-3">
               <label class="form-label small">IPFT (2nd Annual)</label>
               <select name="ipft_2nd" class="form-select">
                 <option value="">Select...</option>
-                <option value="PASS" <?= ($service['ipft_2nd'] ?? '') === 'PASS' ? 'selected' : '' ?>>PASS</option>
-                <option value="FAIL" <?= ($service['ipft_2nd'] ?? '') === 'FAIL' ? 'selected' : '' ?>>FAIL</option>
-                <option value="NOT ATTENDING" <?= ($service['ipft_2nd'] ?? '') === 'NOT ATTENDING' ? 'selected' : '' ?>>NOT
-                  ATTENDING</option>
+                <option value="PASS" <?= strtoupper(trim((string)($service['ipft_2nd'] ?? ''))) === 'PASS' ? 'selected' : '' ?>>PASS</option>
+                <option value="FAIL" <?= strtoupper(trim((string)($service['ipft_2nd'] ?? ''))) === 'FAIL' ? 'selected' : '' ?>>FAIL</option>
+                <option value="NOT ATTENDING" <?= strtoupper(trim((string)($service['ipft_2nd'] ?? ''))) === 'NOT ATTENDING' ? 'selected' : '' ?>>NOT ATTENDING</option>
+                <option value="NOT APPLICABLE" <?= in_array(strtoupper(trim((string)($service['ipft_2nd'] ?? ''))), ['NOT APPLICABLE', 'NOT_APPLICABLE', 'NA', 'N/A'], true) ? 'selected' : '' ?>>NOT APPLICABLE</option>
               </select>
             </div>
             <div class="col-md-3">
               <label class="form-label small">RET (Result)</label>
               <select name="ret" class="form-select">
                 <option value="">Select...</option>
-                <option value="PASS" <?= ($service['ret'] ?? '') === 'PASS' ? 'selected' : '' ?>>PASS</option>
-                <option value="FAIL" <?= ($service['ret'] ?? '') === 'FAIL' ? 'selected' : '' ?>>FAIL</option>
-                <option value="NOT ATTENDING" <?= ($service['ret'] ?? '') === 'NOT ATTENDING' ? 'selected' : '' ?>>NOT ATTENDING</option>
+                <option value="PASS" <?= strtoupper(trim((string)($service['ret'] ?? ''))) === 'PASS' ? 'selected' : '' ?>>PASS</option>
+                <option value="FAIL" <?= strtoupper(trim((string)($service['ret'] ?? ''))) === 'FAIL' ? 'selected' : '' ?>>FAIL</option>
+                <option value="NOT ATTENDING" <?= strtoupper(trim((string)($service['ret'] ?? ''))) === 'NOT ATTENDING' ? 'selected' : '' ?>>NOT ATTENDING</option>
+                <option value="NOT APPLICABLE" <?= in_array(strtoupper(trim((string)($service['ret'] ?? ''))), ['NOT APPLICABLE', 'NOT_APPLICABLE', 'NA', 'N/A'], true) ? 'selected' : '' ?>>NOT APPLICABLE</option>
               </select>
             </div>
             <div class="col-md-3">
@@ -835,6 +900,23 @@ foreach ($socialLinks as $link) {
         toggleMoq(!chk.checked);
       });
     });
+
+    const moqNaEditChk = document.getElementById('moq_na_edit_chk');
+    const moqsEditList = document.getElementById('moqs_edit_list');
+    function updateMoqNaEdit() {
+      if (!moqNaEditChk || !moqsEditList) return;
+      if (moqNaEditChk.checked) {
+        moqsEditList.style.opacity = '0.45';
+        moqsEditList.style.pointerEvents = 'none';
+      } else {
+        moqsEditList.style.opacity = '1';
+        moqsEditList.style.pointerEvents = 'auto';
+      }
+    }
+    if (moqNaEditChk) {
+      moqNaEditChk.addEventListener('change', updateMoqNaEdit);
+      updateMoqNaEdit();
+    }
 
     const familyMemberSelect = document.getElementById('family_member_select');
     const livingStatusContainer = document.getElementById('living_status_container');

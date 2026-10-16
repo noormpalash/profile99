@@ -255,6 +255,48 @@
     white-space: nowrap !important;
   }
 
+  /* ── Leave table fit-to-page rules ── */
+  #onLeaveSection,
+  #onLeaveSection .premium-table-container,
+  #onLeaveSection .premium-table-inner {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  #onLeaveSection table,
+  table.leave-print-table {
+    width: 100% !important;
+    max-width: 100% !important;
+    table-layout: fixed !important;
+    font-size: 9.5pt !important;
+    border-collapse: collapse !important;
+    margin: 0 auto !important;
+  }
+
+  #onLeaveSection table th,
+  #onLeaveSection table td,
+  table.leave-print-table th,
+  table.leave-print-table td {
+    white-space: normal !important;
+    word-break: break-word !important;
+    padding: 4px 3px !important;
+    font-size: 9pt !important;
+    line-height: 1.25 !important;
+    border: 1px solid #000 !important;
+  }
+
+  #onLeaveSection table th,
+  table.leave-print-table th {
+    font-size: 8.5pt !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    background: #f1f5f9 !important;
+    text-align: center !important;
+  }
+
   /* ── Profile page ── */
   .profile-page .hero-bg-layer {
     background: #e0e0e0 !important;

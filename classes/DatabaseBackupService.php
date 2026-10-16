@@ -23,14 +23,13 @@ class DatabaseBackupService
      */
     public function export(): string
     {
-        $tempFile = tempnam(sys_get_temp_dir(), 'db_backup_');
-        if ($tempFile === false) {
-            throw new RuntimeException("Failed to create temporary file for backup.");
-        }
-        $tempFile .= '.sql';
+        $tempFile = $this->createTempBackupFile();
 
         $handle = fopen($tempFile, 'w');
         if ($handle === false) {
+            if (is_file($tempFile)) {
+                @unlink($tempFile);
+            }
             throw new RuntimeException("Failed to open temporary file for writing.");
         }
 
@@ -62,12 +61,62 @@ class DatabaseBackupService
 
             return $tempFile;
         } catch (\Throwable $e) {
-            fclose($handle);
+            if (is_resource($handle)) {
+                fclose($handle);
+            }
             if (is_file($tempFile)) {
-                unlink($tempFile);
+                @unlink($tempFile);
             }
             throw new RuntimeException("Database export failed. Error: " . $e->getMessage());
         }
+    }
+
+    /**
+     * Resolves a writable temporary file path for the backup.
+     * Tries system temp dir, upload_tmp_dir, and project uploads/temp directory.
+     *
+     * @throws RuntimeException if no writable directory is found
+     */
+    private function createTempBackupFile(): string
+    {
+        $candidateDirs = [
+            sys_get_temp_dir(),
+            ini_get('upload_tmp_dir'),
+            __DIR__ . '/../uploads/temp',
+            __DIR__ . '/../uploads',
+            '/tmp',
+        ];
+
+        $candidateDirs = array_values(array_unique(array_filter($candidateDirs)));
+
+        foreach ($candidateDirs as $dir) {
+            if (!is_dir($dir)) {
+                @mkdir($dir, 0777, true);
+            }
+            if (!is_dir($dir) || !is_writable($dir)) {
+                continue;
+            }
+
+            $tempFile = @tempnam($dir, 'db_backup_');
+            if ($tempFile !== false) {
+                @unlink($tempFile);
+                $sqlFile = $tempFile . '.sql';
+                $handle = @fopen($sqlFile, 'w');
+                if ($handle !== false) {
+                    fclose($handle);
+                    return $sqlFile;
+                }
+            }
+
+            $sqlFile = rtrim($dir, '/\\') . DIRECTORY_SEPARATOR . 'db_backup_' . bin2hex(random_bytes(8)) . '.sql';
+            $handle = @fopen($sqlFile, 'w');
+            if ($handle !== false) {
+                fclose($handle);
+                return $sqlFile;
+            }
+        }
+
+        throw new RuntimeException("Failed to create temporary file for backup. No writable temporary directory found.");
     }
 
     /**
