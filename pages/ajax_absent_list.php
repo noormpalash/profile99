@@ -48,7 +48,8 @@ $leaveMap = [
   'C/Leave' => 'Casual Leave',
   'W/Leave' => 'Weekend Leave',
   'R/Leave' => 'Recreation Leave',
-  'Medical Leave' => 'M/Leave',
+  'M/Leave' => 'Medical Leave',
+  'Medical Leave' => 'Medical Leave',
 ];
 
 $statusMap = [

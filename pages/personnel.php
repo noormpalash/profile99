@@ -27,6 +27,10 @@ $filters = [
 $hasFilters = implode('', $filters) !== '';
 $showAdvanced = $hasFilters || isset($_GET['advanced']);
 $people = $hasFilters ? Personnel::filter($filters) : Personnel::all();
+$moqFilterId = (int) ($filters['moq_id'] ?? 0);
+$moqStatusFilter = $filters['moq_status'] ?? '';
+$isMoqNotQualFilter = ($moqStatusFilter === 'not_qualified');
+$missingMoqsMap = Personnel::getMissingMoqsMap($moqFilterId);
 $ranks = LookupManager::getAll('ranks');
 $units = LookupManager::getAll('units');
 $bloodGroups = LookupManager::getAll('blood_groups');
@@ -340,6 +344,7 @@ $districts = bangladeshDistricts();
             <th class="info-col info-col-platoon" style="display:none;">Platoon</th>
             <th class="info-col info-col-civil_education" style="display:none;">Civil Education</th>
             <th class="info-col info-col-nid" style="display:none;">NID</th>
+            <th class="info-col info-col-moq_missing" style="display:none;">Missing MOQ</th>
             <th>Remark</th>
           </tr>
         </thead>
@@ -400,7 +405,9 @@ $districts = bangladeshDistricts();
                 <?= htmlspecialchars($p['civil_education'] ?? 'HSC') ?></td>
               <td class="info-col info-col-nid" style="display:none; text-align:center; vertical-align:middle;">
                 <?= htmlspecialchars($p['nid'] ?? '-') ?></td>
-              <td style="text-align: left; vertical-align: middle;">
+              <td class="info-col info-col-moq_missing" style="display:none; text-align:left; vertical-align:middle; padding-left: 8px !important;">
+                <?= htmlspecialchars(!empty($missingMoqsMap[$p['id']]) ? implode(', ', $missingMoqsMap[$p['id']]) : '-') ?></td>
+              <td style="text-align: left; vertical-align: middle; padding-left: 8px !important;">
                 <?php if ($isLeaveFilter && !empty($p['current_leave_from']) && !empty($p['current_leave_to'])): ?>
                   <?= date('d/m/y', strtotime($p['current_leave_from'])) ?> to
                   <?= date('d/m/y', strtotime($p['current_leave_to'])) ?>
@@ -416,6 +423,8 @@ $districts = bangladeshDistricts();
 </div>
 
 <script>
+  const isMoqNotQual = <?= json_encode($isMoqNotQualFilter) ?>;
+
   // Shared helper: sort & filter print rows, set headings, trigger print
   function executePrint(options) {
     document.getElementById("customPrintHeading").innerText = options.heading;
@@ -483,7 +492,7 @@ $districts = bangladeshDistricts();
     });
 
     // Handle info columns visibility
-    const allInfoFields = ['blood_group', 'district', 'phone', 'appointment', 'unit', 'cadre', 'platoon', 'civil_education', 'nid'];
+    const allInfoFields = ['blood_group', 'district', 'phone', 'appointment', 'unit', 'cadre', 'platoon', 'civil_education', 'nid', 'moq_missing'];
     const selectedFields = options.infoFields || [];
     allInfoFields.forEach(field => {
       const display = selectedFields.includes(field) ? '' : 'none';
@@ -503,7 +512,8 @@ $districts = bangladeshDistricts();
   }
 
   function buildCommonPrintHtml() {
-    return '<input id="printHeading" class="swal2-input" placeholder="Heading" value="Personnel List" style="max-width: 90%; margin: 10px auto;">' +
+    const defaultHeading = isMoqNotQual ? "MOQ Not Qualified Personnel List" : "Personnel List";
+    return '<input id="printHeading" class="swal2-input" placeholder="Heading" value="' + defaultHeading + '" style="max-width: 90%; margin: 10px auto;">' +
       '<input id="printSubHeading" class="swal2-input" placeholder="Sub-heading (optional)" style="max-width: 90%; margin: 10px auto;">' +
       '<div style="text-align:left; width: 90%; margin: 10px auto 0; font-size:14px;">Date (optional):</div>' +
       '<input type="date" id="printDate" class="swal2-input" style="max-width: 90%; margin: 5px auto 10px;">' +
@@ -564,6 +574,10 @@ $districts = bangladeshDistricts();
         '<div class="form-check form-switch mb-0">' +
           '<input class="form-check-input info-field-cb" type="checkbox" id="col_nid" value="nid">' +
           '<label class="form-check-label small text-dark ms-1" for="col_nid">NID</label>' +
+        '</div>' +
+        '<div class="form-check form-switch mb-0">' +
+          '<input class="form-check-input info-field-cb" type="checkbox" id="col_moq_missing" value="moq_missing"' + (isMoqNotQual ? ' checked' : '') + '>' +
+          '<label class="form-check-label small text-dark ms-1" for="col_moq_missing">Missing MOQ</label>' +
         '</div>' +
       '</div>';
 

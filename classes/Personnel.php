@@ -122,13 +122,27 @@ class Personnel {
         }
 
         $moqId = (int)($filters['moq_id'] ?? 0);
-        if ($moqId > 0) {
-            $sql .= " AND p.id IN (SELECT personnel_id FROM personnel_moqs WHERE moq_id = ?)";
-            $params[] = $moqId;
-        }
-
         $moqStatus = trim((string)($filters['moq_status'] ?? ''));
-        if ($moqStatus === 'qualified' || $moqStatus === 'not_qualified' || $moqStatus === 'not_applicable' || $moqStatus === 'na') {
+
+        if ($moqId > 0) {
+            if ($moqStatus === 'qualified' || $moqStatus === 'not_qualified' || $moqStatus === 'not_applicable' || $moqStatus === 'na') {
+                $targetIds = self::getPersonnelIdsByIndividualMoq($moqId, $moqStatus);
+                if (empty($targetIds)) {
+                    $sql .= " AND 1=0";
+                } else {
+                    $inClause = implode(',', array_map('intval', $targetIds));
+                    $sql .= " AND p.id IN ($inClause)";
+                }
+            } else {
+                $targetIds = self::getPersonnelIdsByIndividualMoq($moqId, 'any');
+                if (empty($targetIds)) {
+                    $sql .= " AND 1=0";
+                } else {
+                    $inClause = implode(',', array_map('intval', $targetIds));
+                    $sql .= " AND p.id IN ($inClause)";
+                }
+            }
+        } elseif ($moqStatus === 'qualified' || $moqStatus === 'not_qualified' || $moqStatus === 'not_applicable' || $moqStatus === 'na') {
             $targetIds = self::getPersonnelIdsByMoqStatus($moqStatus);
             if (empty($targetIds)) {
                 $sql .= " AND 1=0";
@@ -1880,6 +1894,301 @@ class Personnel {
         }
         return [];
     }
+
+    /**
+     * Get personnel IDs matching an individual MOQ and qualification status.
+     * Evaluates whether each personnel has qualified for the specific MOQ, is not qualified (lacking/failed),
+     * or whether the MOQ is not applicable to them.
+     *
+     * @param int $moqId
+     * @param string $status 'qualified', 'not_qualified', 'not_applicable'/'na', or ''/'any'
+     * @return int[]
+     */
+    public static function getPersonnelIdsByIndividualMoq(int $moqId, string $status = ''): array {
+        if ($moqId <= 0) {
+            return [];
+        }
+
+        $db = getDB();
+        $stmt = $db->prepare("SELECT id, name, is_bypass FROM moqs WHERE id = ?");
+        $stmt->execute([$moqId]);
+        $targetMoq = $stmt->fetch(\PDO::FETCH_ASSOC);
+        if (!$targetMoq) {
+            return [];
+        }
+
+        $targetMoqName = trim((string)$targetMoq['name']);
+        $isGlobalBypass = !empty($targetMoq['is_bypass']);
+        $normMoq = strtolower($targetMoqName);
+
+        $targetPatterns = [$normMoq];
+        $requiredRanks = [];
+        $isCommando = false;
+        $isClmOrJcoc = false;
+
+        if ($normMoq === 'btt' || str_contains($normMoq, 'basic trade')) {
+            $targetPatterns = array_merge($targetPatterns, ['btt', 'basic trade training']);
+            $requiredRanks = ['sainik'];
+        } elseif ($normMoq === 'arms commando' || $normMoq === 'services commando' || str_contains($normMoq, 'commando')) {
+            if ($normMoq === 'arms commando') {
+                $targetPatterns = ['arms commando', 'commando'];
+            } elseif ($normMoq === 'services commando') {
+                $targetPatterns = ['services commando', 'commando'];
+            } else {
+                $targetPatterns = ['arms commando', 'services commando', 'commando'];
+            }
+            $requiredRanks = ['sainik'];
+            $isCommando = true;
+        } elseif ($normMoq === 'bmr' || str_contains($normMoq, 'basic military')) {
+            $targetPatterns = array_merge($targetPatterns, ['bmr', 'basic military refresher']);
+            $requiredRanks = ['sainik'];
+        } elseif ($normMoq === 'pe' || str_contains($normMoq, 'promotion exam') || str_contains($normMoq, 'physical efficiency')) {
+            $targetPatterns = array_merge($targetPatterns, ['pe', 'promotion exam', 'promotion examination', 'physical efficiency']);
+            $requiredRanks = ['sainik', 'lance corporal', 'corporal', 'sergeant', 'warrant officer'];
+        } elseif ($normMoq === 'pc' || str_contains($normMoq, 'potential cadre')) {
+            $targetPatterns = array_merge($targetPatterns, ['pc', 'potential cadre']);
+            $requiredRanks = ['lance corporal'];
+        } elseif ($normMoq === 'att' || str_contains($normMoq, 'advance trade') || str_contains($normMoq, 'advanced trade')) {
+            $targetPatterns = array_merge($targetPatterns, ['att', 'advance trade training', 'advanced trade training']);
+            $requiredRanks = ['corporal'];
+        } elseif ($normMoq === 'ncoc' || str_contains($normMoq, 'non-commissioned') || str_contains($normMoq, 'nco')) {
+            $targetPatterns = array_merge($targetPatterns, ['ncoc', 'non-commissioned officers course', 'non commissioned officers course', "nco's advanced", "nco’s advanced", 'nco advanced', 'ncos advanced']);
+            $requiredRanks = ['sergeant'];
+        } elseif ($normMoq === 'utility course' || $normMoq === 'utility') {
+            $targetPatterns = array_merge($targetPatterns, ['utility course', 'utility']);
+            $requiredRanks = ['sergeant'];
+        } elseif ($normMoq === 'clm cadre' || $normMoq === 'clm') {
+            $targetPatterns = array_merge($targetPatterns, ['clm cadre', 'clm']);
+            $requiredRanks = ['warrant officer'];
+            $isClmOrJcoc = true;
+        } elseif ($normMoq === 'jcoc' || str_contains($normMoq, 'junior command')) {
+            $targetPatterns = array_merge($targetPatterns, ['jcoc', 'junior command', 'junior commissioned']);
+            $requiredRanks = ['warrant officer'];
+            $isClmOrJcoc = true;
+        }
+
+        $personnel = $db->query("SELECT p.id, p.moq_na, r.name AS rank_name FROM personnel p JOIN ranks r ON p.rank_id = r.id")->fetchAll(\PDO::FETCH_ASSOC);
+        $allMoqs = $db->query("SELECT pm.personnel_id, pm.moq_id, m.name AS moq_name, pm.result, pm.is_bypass FROM personnel_moqs pm JOIN moqs m ON pm.moq_id = m.id")->fetchAll(\PDO::FETCH_ASSOC);
+        $allCourses = $db->query("SELECT pc.personnel_id, c.name AS course_name, pc.result FROM personnel_courses pc JOIN courses c ON pc.course_id = c.id")->fetchAll(\PDO::FETCH_ASSOC);
+        $allCadres = $db->query("SELECT pc.personnel_id, c.name AS cadre_name FROM personnel_cadres pc JOIN cadres c ON pc.cadre_id = c.id")->fetchAll(\PDO::FETCH_ASSOC);
+
+        $pMoqMap = [];
+        foreach ($allMoqs as $row) {
+            $pMoqMap[$row['personnel_id']][] = $row;
+        }
+        $pCourseMap = [];
+        foreach ($allCourses as $row) {
+            $pCourseMap[$row['personnel_id']][] = $row;
+        }
+        $pCadreMap = [];
+        foreach ($allCadres as $row) {
+            $pCadreMap[$row['personnel_id']][] = $row;
+        }
+
+        $isFailed = static function (?string $result): bool {
+            if ($result === null) return false;
+            $r = strtolower(trim($result));
+            return in_array($r, ['fail', 'failed', 'f', 'unsuccessful', 'not qualified', 'disqualified', 'dropped'], true);
+        };
+
+        $qualifiedIds = [];
+        $notQualifiedIds = [];
+        $naIds = [];
+        $hasRecordIds = [];
+
+        foreach ($personnel as $p) {
+            $pId = (int)$p['id'];
+            $isMoqNa = !empty($p['moq_na']);
+            $rawRank = strtolower(trim((string)$p['rank_name']));
+
+            $canonicalRank = match (true) {
+                in_array($rawRank, ['sainik', 'snk', 'snk(gd)', 'snk (gd)', 'soldier', 'snk.'], true) || str_starts_with($rawRank, 'snk') => 'sainik',
+                in_array($rawRank, ['lance corporal', 'lcpl', 'l/cpl', 'l.cpl', 'l cpl', 'l-cpl'], true) || str_starts_with($rawRank, 'lcpl') || str_starts_with($rawRank, 'l/cpl') => 'lance corporal',
+                in_array($rawRank, ['corporal', 'cpl', 'cpl.'], true) || str_starts_with($rawRank, 'cpl') => 'corporal',
+                in_array($rawRank, ['sergeant', 'sgt', 'sgt.'], true) || str_starts_with($rawRank, 'sgt') => 'sergeant',
+                in_array($rawRank, ['warrant officer', 'wo', 'wo.', 'swo', 'senior warrant officer', 'mwo', 'master warrant officer'], true) || $rawRank === 'wo' || str_starts_with($rawRank, 'wo ') || str_starts_with($rawRank, 'swo') || str_starts_with($rawRank, 'mwo') => 'warrant officer',
+                default => null,
+            };
+
+            // Check if qualified
+            $isQualified = false;
+            if ($isGlobalBypass) {
+                $isQualified = true;
+            }
+
+            $pMoqs = $pMoqMap[$pId] ?? [];
+            $attemptedAndFailed = false;
+
+            foreach ($pMoqs as $m) {
+                if ((int)$m['moq_id'] === $moqId) {
+                    $hasRecordIds[] = $pId;
+                    $res = $m['result'] ?? null;
+                    if (!empty($m['is_bypass']) || (is_string($res) && strtolower(trim($res)) === 'bypass')) {
+                        $isQualified = true;
+                        break;
+                    }
+                    if ($res !== null && trim((string)$res) !== '' && !$isFailed($res)) {
+                        $isQualified = true;
+                        break;
+                    }
+                    if ($isFailed($res) || $res === null || trim((string)$res) === '') {
+                        $attemptedAndFailed = true;
+                    }
+                }
+            }
+
+            // Cross-table checks if not already qualified
+            if (!$isQualified) {
+                // Check courses
+                foreach ($pCourseMap[$pId] ?? [] as $c) {
+                    $cName = strtolower(trim((string)$c['course_name']));
+                    $cRes = $c['result'] ?? null;
+                    if (!$isFailed($cRes)) {
+                        foreach ($targetPatterns as $pattern) {
+                            if ($cName === $pattern || str_contains($cName, $pattern)) {
+                                $isQualified = true;
+                                break 2;
+                            }
+                        }
+                    }
+                }
+                // Check cadres
+                if (!$isQualified) {
+                    foreach ($pCadreMap[$pId] ?? [] as $cd) {
+                        $cdName = strtolower(trim((string)$cd['cadre_name']));
+                        foreach ($targetPatterns as $pattern) {
+                            if ($cdName === $pattern || str_contains($cdName, $pattern)) {
+                                $isQualified = true;
+                                break 2;
+                            }
+                        }
+                    }
+                }
+                // SGT utility course equivalency: any valid non-NCOC course
+                if (!$isQualified && $canonicalRank === 'sergeant' && ($normMoq === 'utility course' || $normMoq === 'utility')) {
+                    foreach ($pCourseMap[$pId] ?? [] as $c) {
+                        $cName = strtolower(trim((string)$c['course_name']));
+                        $cRes = $c['result'] ?? null;
+                        if (!$isFailed($cRes) && !str_contains($cName, 'ncoc')) {
+                            $isQualified = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if ($isQualified) {
+                $qualifiedIds[] = $pId;
+            } else {
+                // For promotion requirements with alternative options:
+                // If Sainik has completed the other Commando course, they are not lacking Commando requirement
+                $hasAlternativeCommando = false;
+                if ($isCommando && $canonicalRank === 'sainik') {
+                    foreach ($pMoqs as $m) {
+                        $mName = strtolower(trim((string)$m['moq_name']));
+                        $res = $m['result'] ?? null;
+                        if ((str_contains($mName, 'commando')) && (!empty($m['is_bypass']) || ($res !== null && trim((string)$res) !== '' && !$isFailed($res)))) {
+                            $hasAlternativeCommando = true;
+                            break;
+                        }
+                    }
+                }
+                $hasAlternativeClm = false;
+                if ($isClmOrJcoc && $canonicalRank === 'warrant officer') {
+                    foreach ($pMoqs as $m) {
+                        $mName = strtolower(trim((string)$m['moq_name']));
+                        $res = $m['result'] ?? null;
+                        if ((str_contains($mName, 'clm') || str_contains($mName, 'jcoc')) && (!empty($m['is_bypass']) || ($res !== null && trim((string)$res) !== '' && !$isFailed($res)))) {
+                            $hasAlternativeClm = true;
+                            break;
+                        }
+                    }
+                }
+
+                $isApplicableRank = ($canonicalRank !== null && (empty($requiredRanks) || in_array($canonicalRank, $requiredRanks, true)));
+                if ($isMoqNa || $canonicalRank === null || $hasAlternativeCommando || $hasAlternativeClm || (!$isApplicableRank && !$attemptedAndFailed)) {
+                    $naIds[] = $pId;
+                } else {
+                    $notQualifiedIds[] = $pId;
+                }
+            }
+        }
+
+        $statusLower = strtolower(trim($status));
+        if ($statusLower === 'qualified') {
+            return $qualifiedIds;
+        }
+        if ($statusLower === 'not_qualified') {
+            return $notQualifiedIds;
+        }
+        if ($statusLower === 'not_applicable' || $statusLower === 'na') {
+            return $naIds;
+        }
+
+        // 'any' or empty: return anyone who has a record in personnel_moqs for this moq_id OR is qualified
+        return array_values(array_unique(array_merge($qualifiedIds, $hasRecordIds)));
+    }
+
+    /**
+     * Get a map of personnel_id => array of missing MOQ names.
+     * If $specificMoqId > 0, returns only that MOQ name for personnel who have not qualified in it.
+     * Otherwise returns all missing promotion requirements for each personnel.
+     *
+     * @param int $specificMoqId
+     * @return array<int, string[]>
+     */
+    public static function getMissingMoqsMap(int $specificMoqId = 0): array {
+        $db = getDB();
+
+        if ($specificMoqId > 0) {
+            $notQualIds = self::getPersonnelIdsByIndividualMoq($specificMoqId, 'not_qualified');
+            $moqName = $db->query("SELECT name FROM moqs WHERE id = " . (int)$specificMoqId)->fetchColumn() ?: 'MOQ';
+            $map = [];
+            foreach ($notQualIds as $id) {
+                $map[(int)$id] = [$moqName];
+            }
+            return $map;
+        }
+
+        $personnelRanks = $db->query("SELECT p.id, p.moq_na, r.name AS rank_name FROM personnel p JOIN ranks r ON p.rank_id = r.id")->fetchAll(\PDO::FETCH_ASSOC);
+        $allMoqs = $db->query("SELECT pm.personnel_id, m.name AS moq_name, pm.result, pm.is_bypass FROM personnel_moqs pm JOIN moqs m ON pm.moq_id = m.id")->fetchAll(\PDO::FETCH_ASSOC);
+        $allCourses = $db->query("SELECT pc.personnel_id, c.name AS course_name, pc.result FROM personnel_courses pc JOIN courses c ON pc.course_id = c.id")->fetchAll(\PDO::FETCH_ASSOC);
+        $allCadres = $db->query("SELECT pc.personnel_id, c.name AS cadre_name FROM personnel_cadres pc JOIN cadres c ON pc.cadre_id = c.id")->fetchAll(\PDO::FETCH_ASSOC);
+        $allEdus = $db->query("SELECT personnel_id, civil_education FROM personnel_education")->fetchAll(\PDO::FETCH_KEY_PAIR) ?: [];
+
+        $pMoqMap = [];
+        foreach ($allMoqs as $row) {
+            $pMoqMap[$row['personnel_id']][] = $row;
+        }
+        $pCourseMap = [];
+        foreach ($allCourses as $row) {
+            $pCourseMap[$row['personnel_id']][] = $row;
+        }
+        $pCadreMap = [];
+        foreach ($allCadres as $row) {
+            $pCadreMap[$row['personnel_id']][] = $row;
+        }
+
+        $map = [];
+        foreach ($personnelRanks as $p) {
+            $pId = (int)$p['id'];
+            if (!empty($p['moq_na'])) {
+                continue;
+            }
+            $pMoqs = $pMoqMap[$pId] ?? [];
+            $pCourses = $pCourseMap[$pId] ?? [];
+            $pCadres = $pCadreMap[$pId] ?? [];
+            $pEdu = $allEdus[$pId] ?? 'HSC';
+
+            $status = self::checkPromotionStatus($p['rank_name'] ?? '', $pMoqs, $pCourses, $pCadres, false, $pEdu);
+            if ($status['has_logic'] && !$status['is_qualified'] && !empty($status['missing'])) {
+                $map[$pId] = $status['missing'];
+            }
+        }
+
+        return $map;
+    }
 }
+
 
 
