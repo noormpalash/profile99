@@ -1641,9 +1641,6 @@ class Personnel {
                     if (preg_match('/\b' . preg_quote($patternLower, '/') . '\b/i', $entry) === 1) {
                         return true;
                     }
-                    if (str_contains($entry, $patternLower)) {
-                        return true;
-                    }
                 }
             }
             return false;
@@ -2045,7 +2042,7 @@ class Personnel {
                     $cRes = $c['result'] ?? null;
                     if (!$isFailed($cRes)) {
                         foreach ($targetPatterns as $pattern) {
-                            if ($cName === $pattern || str_contains($cName, $pattern)) {
+                            if ($cName === $pattern || preg_match('/\b' . preg_quote($pattern, '/') . '\b/i', $cName) === 1) {
                                 $isQualified = true;
                                 break 2;
                             }
@@ -2057,7 +2054,7 @@ class Personnel {
                     foreach ($pCadreMap[$pId] ?? [] as $cd) {
                         $cdName = strtolower(trim((string)$cd['cadre_name']));
                         foreach ($targetPatterns as $pattern) {
-                            if ($cdName === $pattern || str_contains($cdName, $pattern)) {
+                            if ($cdName === $pattern || preg_match('/\b' . preg_quote($pattern, '/') . '\b/i', $cdName) === 1) {
                                 $isQualified = true;
                                 break 2;
                             }
