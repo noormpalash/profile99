@@ -1,0 +1,23 @@
+# Secrets & config
+config/db.php
+
+# Database dumps
+*.sql
+
+# Dependencies
+vendor/
+
+# Uploads
+uploads/*
+!uploads/.htaccess
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+
+# Temp files
+uploads/temp*/

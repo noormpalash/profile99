@@ -12,10 +12,13 @@ class Auth
     public static function start(): void
     {
         if (session_status() === PHP_SESSION_NONE) {
+            // Security: httponly prevents JS access, samesite prevents CSRF,
+            // secure flag only set when behind HTTPS to avoid breaking local dev
             session_set_cookie_params([
                 'lifetime' => 0,
                 'httponly' => true,
-                'samesite' => 'Lax'
+                'samesite' => 'Lax',
+                'secure' => isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
             ]);
             session_start();
         }
@@ -37,6 +40,8 @@ class Auth
 
 
         self::start();
+        // Security: regenerate session ID to prevent session fixation attacks
+        session_regenerate_id(true);
         $sessionToken = bin2hex(random_bytes(32));
         $updateStmt = $db->prepare("UPDATE users SET session_token = ?, last_activity = NOW() WHERE id = ?");
         $updateStmt->execute([$sessionToken, $user['id']]);
@@ -158,7 +163,13 @@ class Auth
         
         if (!$tokenInDb || !isset($_SESSION['session_token']) || $tokenInDb !== $_SESSION['session_token']) {
             if ($tokenInDb && isset($_SESSION['session_token']) && $tokenInDb !== $_SESSION['session_token']) {
-                setcookie('logout_reason', 'new_device', time() + 60, '/');
+                setcookie('logout_reason', 'new_device', [
+                    'expires' => time() + 60,
+                    'path' => '/',
+                    'httponly' => true,
+                    'samesite' => 'Lax',
+                    'secure' => isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+                ]);
             }
             self::forceLogout();
             return false;
@@ -247,5 +258,67 @@ class Auth
         }
         http_response_code(403);
         die('Access denied — missing one of required permissions.');
+    }
+
+    // --- Brute-force Login Protection ---
+    public static function checkLoginThrottle(string $username): bool
+    {
+        $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+        $lockFile = sys_get_temp_dir() . '/profile99_throttle_' . md5($ip . '_' . strtolower($username)) . '.json';
+        if (file_exists($lockFile)) {
+            $data = @json_decode(file_get_contents($lockFile), true);
+            if (is_array($data) && isset($data['count'], $data['last_attempt'])) {
+                if ($data['count'] >= 5 && (time() - $data['last_attempt'] < 900)) {
+                    return true; // 15-minute lockout after 5 consecutive failures
+                }
+            }
+        }
+        return false;
+    }
+
+    public static function recordFailedLogin(string $username): void
+    {
+        $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+        $lockFile = sys_get_temp_dir() . '/profile99_throttle_' . md5($ip . '_' . strtolower($username)) . '.json';
+        $data = ['count' => 0, 'last_attempt' => time()];
+        if (file_exists($lockFile)) {
+            $existing = @json_decode(file_get_contents($lockFile), true);
+            if (is_array($existing) && (time() - ($existing['last_attempt'] ?? 0) < 900)) {
+                $data = $existing;
+            }
+        }
+        $data['count'] = ($data['count'] ?? 0) + 1;
+        $data['last_attempt'] = time();
+        @file_put_contents($lockFile, json_encode($data), LOCK_EX);
+    }
+
+    public static function clearLoginThrottle(string $username): void
+    {
+        $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+        $lockFile = sys_get_temp_dir() . '/profile99_throttle_' . md5($ip . '_' . strtolower($username)) . '.json';
+        if (file_exists($lockFile)) {
+            @unlink($lockFile);
+        }
+    }
+
+    // --- Password Complexity Policy ---
+    public static function validatePasswordComplexity(string $password): ?string
+    {
+        if (strlen($password) < 8) {
+            return "Password must be at least 8 characters long.";
+        }
+        if (!preg_match('/[A-Z]/', $password)) {
+            return "Password must contain at least one uppercase letter (A-Z).";
+        }
+        if (!preg_match('/[a-z]/', $password)) {
+            return "Password must contain at least one lowercase letter (a-z).";
+        }
+        if (!preg_match('/[0-9]/', $password)) {
+            return "Password must contain at least one digit (0-9).";
+        }
+        if (!preg_match('/[^A-Za-z0-9]/', $password)) {
+            return "Password must contain at least one special character.";
+        }
+        return null;
     }
 }

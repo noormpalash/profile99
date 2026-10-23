@@ -50,8 +50,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Update password if provided
             if ($newPassword !== '') {
-                if (strlen($newPassword) < 8) {
-                    throw new Exception('New password must be at least 8 characters long.');
+                if ($err = Auth::validatePasswordComplexity($newPassword)) {
+                    throw new Exception($err);
                 }
                 if ($newPassword !== $confirmPassword) {
                     throw new Exception('New password and confirmation do not match.');

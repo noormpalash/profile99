@@ -17,7 +17,12 @@ class UpdaterService
         // Paths relative to appRoot that should never be overwritten
         $this->safePaths = [
             'config/db.php',
-            'uploads'
+            'config/.htaccess',
+            'classes/.htaccess',
+            'uploads',
+            '.git',
+            '.gitignore',
+            '.env'
         ];
     }
 
@@ -32,7 +37,27 @@ class UpdaterService
             throw new RuntimeException("Failed to open ZIP file.");
         }
 
-        if (!mkdir($this->tempExtractDir, 0777, true) && !is_dir($this->tempExtractDir)) {
+        // Security check: validate every file inside ZIP before extraction
+        $blockedExtensions = ['exe', 'sh', 'bat', 'cmd', 'phar', 'cgi', 'pl', 'py', 'msi', 'com'];
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $entry = $zip->getNameIndex($i);
+            if ($entry === false) continue;
+
+            // Zip Slip protection: block directory traversal and absolute paths
+            if (str_contains($entry, '..') || str_starts_with($entry, '/') || str_starts_with($entry, '\\')) {
+                $zip->close();
+                throw new RuntimeException("Malicious path traversal detected in ZIP archive.");
+            }
+
+            // Block dangerous binary and shell extensions
+            $ext = strtolower(pathinfo($entry, PATHINFO_EXTENSION));
+            if (in_array($ext, $blockedExtensions, true)) {
+                $zip->close();
+                throw new RuntimeException("Disallowed executable file type in update ZIP: " . htmlspecialchars($ext));
+            }
+        }
+
+        if (!mkdir($this->tempExtractDir, 0755, true) && !is_dir($this->tempExtractDir)) {
             throw new RuntimeException("Failed to create temporary extraction directory.");
         }
 

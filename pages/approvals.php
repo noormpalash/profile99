@@ -71,7 +71,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $db->commit();
         } catch (Exception $e) {
             if ($db->inTransaction()) $db->rollBack();
-            $error = "Error processing request: " . $e->getMessage();
+            error_log("Approval processing error: " . $e->getMessage());
+            $error = "An error occurred while processing the request. Please try again.";
         }
     }
 }

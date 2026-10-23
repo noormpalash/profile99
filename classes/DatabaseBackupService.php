@@ -216,6 +216,11 @@ class DatabaseBackupService
             throw new RuntimeException("Failed to read SQL file.");
         }
 
+        // Security check: reject SQL files containing dangerous administrative or exfiltration commands
+        if (preg_match('/\b(GRANT\s+ALL|CREATE\s+USER|DROP\s+DATABASE|ALTER\s+USER|INTO\s+OUTFILE|LOAD_FILE|SHUTDOWN)\b/i', $sql, $matches)) {
+            throw new RuntimeException("Import aborted: disallowed SQL statement detected (" . htmlspecialchars($matches[1]) . ").");
+        }
+
         try {
             $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             $this->pdo->exec("SET FOREIGN_KEY_CHECKS = 0");
@@ -223,7 +228,8 @@ class DatabaseBackupService
             $this->pdo->exec("SET FOREIGN_KEY_CHECKS = 1");
         } catch (\PDOException $e) {
             $this->pdo->exec("SET FOREIGN_KEY_CHECKS = 1");
-            throw new RuntimeException("Database import failed. Error: " . $e->getMessage());
+            error_log("Database import PDO error: " . $e->getMessage());
+            throw new RuntimeException("Database import failed due to a SQL error. Check server logs for details.");
         }
     }
 }

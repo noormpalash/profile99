@@ -866,10 +866,10 @@ foreach ($seniorityList as $row) {
   <?php if (!empty($_GET['auto_print']) && Auth::hasPermission('print_records')): ?>
     document.addEventListener('DOMContentLoaded', () => {
       const url = new URL(window.location.href);
-      const heading = <?= json_encode($_GET['print_heading'] ?? 'LEAVE SENIORITY STATE') ?>;
-      const subHeading = <?= json_encode($_GET['print_subheading'] ?? AppSettings::get('app_title', 'Unit Personnel System')) ?>;
-      const dateVal = <?= json_encode($_GET['print_date'] ?? date('Y-m-d')) ?>;
-      const pageSize = <?= json_encode($_GET['print_page_size'] ?? 'A4') ?>;
+      const heading = <?= json_encode((string)($_GET['print_heading'] ?? 'LEAVE SENIORITY STATE'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+      const subHeading = <?= json_encode((string)($_GET['print_subheading'] ?? AppSettings::get('app_title', 'Unit Personnel System')), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+      const dateVal = <?= json_encode((string)($_GET['print_date'] ?? date('Y-m-d')), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+      const pageSize = <?= json_encode((string)($_GET['print_page_size'] ?? 'A4'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 
       // Clean URL parameters
       url.searchParams.delete('auto_print');

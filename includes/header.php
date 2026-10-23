@@ -1,9 +1,18 @@
-<?php require_once __DIR__ . '/../config/db.php'; require_once __DIR__ . '/../classes/Auth.php'; require_once __DIR__ . '/../classes/AppSettings.php'; Auth::start(); $withSidebar = $withSidebar ?? false; ?>
+<?php require_once __DIR__ . '/../config/db.php'; require_once __DIR__ . '/../classes/Auth.php'; require_once __DIR__ . '/../classes/AppSettings.php'; Auth::start(); $withSidebar = $withSidebar ?? false;
+
+// Security headers — prevent clickjacking, MIME sniffing, and restrict resource origins
+header('X-Frame-Options: DENY');
+header('X-Content-Type-Options: nosniff');
+header('Referrer-Policy: strict-origin-when-cross-origin');
+header('Permissions-Policy: camera=(), microphone=(), geolocation=()');
+header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' data:; connect-src 'self';");
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow, noarchive">
 <title><?= htmlspecialchars(AppSettings::get('app_title', 'Army Personnel System')) ?></title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

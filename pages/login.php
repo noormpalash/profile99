@@ -35,13 +35,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($username === '' || $password === '') {
         $error = 'Please enter both username and password.';
+    } elseif (Auth::checkLoginThrottle($username)) {
+        $error = 'Too many failed login attempts. Account temporarily locked. Please try again in 15 minutes.';
     } else {
         try {
             if (Auth::attemptLogin($username, $password)) {
+                Auth::clearLoginThrottle($username);
                 $location = Auth::hasPermission('view_dashboard') ? 'dashboard.php' : 'search.php';
                 header('Location: ' . $location);
                 exit;
             } else {
+                Auth::recordFailedLogin($username);
                 $error = 'Invalid credentials.';
             }
         } catch (Exception $e) {

@@ -34,7 +34,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $message = 'Permissions updated successfully.';
     } catch (Exception $e) {
         $db->rollBack();
-        $message = 'Error updating permissions: ' . $e->getMessage();
+        error_log("Role permission update error: " . $e->getMessage());
+        $message = 'An error occurred while updating permissions. Please try again.';
     }
 }
 

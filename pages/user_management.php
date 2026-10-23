@@ -12,8 +12,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $action = $_POST['action'] ?? '';
   try {
     if ($action === 'add') {
-      if (strlen($_POST['password']) < 8) {
-        throw new Exception("Password must be at least 8 characters long.");
+      if ($err = Auth::validatePasswordComplexity($_POST['password'] ?? '')) {
+        throw new Exception($err);
       }
       $hash = password_hash($_POST['password'], PASSWORD_DEFAULT);
       $stmt = $db->prepare("INSERT INTO users (name, username, password_hash, role_id) VALUES (?,?,?,?)");
@@ -26,8 +26,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       $newPass = $_POST['password'] ?? '';
 
       if ($newPass !== '') {
-        if (strlen($newPass) < 8) {
-          throw new Exception("Password must be at least 8 characters long.");
+        if ($err = Auth::validatePasswordComplexity($newPass)) {
+          throw new Exception($err);
         }
         $hash = password_hash($newPass, PASSWORD_DEFAULT);
         $stmt = $db->prepare("UPDATE users SET name = ?, username = ?, role_id = ?, password_hash = ? WHERE id = ?");
@@ -41,8 +41,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_SESSION['username'] = $newUsername;
       }
     } elseif ($action === 'toggle_status') {
+      // Security: whitelist status values to prevent arbitrary data injection
+      $allowedStatuses = ['active', 'disabled'];
+      $newStatus = $_POST['status'] ?? '';
+      if (!in_array($newStatus, $allowedStatuses, true)) {
+        throw new Exception('Invalid status value.');
+      }
       $stmt = $db->prepare("UPDATE users SET status = ? WHERE id = ?");
-      $stmt->execute([$_POST['status'], (int) $_POST['id']]);
+      $stmt->execute([$newStatus, (int) $_POST['id']]);
     } elseif ($action === 'force_logout') {
       Auth::requirePermission('force_logout_user');
       $logoutId = (int) $_POST['id'];

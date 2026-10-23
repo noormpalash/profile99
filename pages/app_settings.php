@@ -34,7 +34,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $message .= " Migrations run: " . implode(', ', $migrationsRun);
                     }
                 } catch (Exception $e) {
-                    $error = "Update Error: " . $e->getMessage();
+                    error_log("System update error: " . $e->getMessage());
+                    $error = "Update failed. Please check the update package and try again.";
                 }
             } else {
                 $error = "Invalid file type. Please upload a ZIP file.";
