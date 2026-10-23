@@ -151,6 +151,13 @@ class Auth
 
         // Security: enforce 30-minute inactivity timeout
         if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity']) > self::SESSION_TIMEOUT) {
+            setcookie('logout_reason', 'timeout', [
+                'expires' => time() + 60,
+                'path' => '/',
+                'httponly' => true,
+                'samesite' => 'Lax',
+                'secure' => isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+            ]);
             self::logout();
             return false;
         }

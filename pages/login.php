@@ -73,7 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <?php if (isset($_GET['reason'])): ?>
       <?php if ($_GET['reason'] === 'timeout'): ?>
-        <div class="alert alert-warning py-2 small rounded-3"><i class="ti ti-clock-off me-1"></i>You were logged out due to 5 minutes of inactivity.</div>
+        <div class="alert alert-warning py-2 small rounded-3"><i class="ti ti-clock-off me-1"></i>You were logged out due to <?= round(Auth::getSessionTimeout() / 60) ?> minutes of inactivity.</div>
       <?php elseif ($_GET['reason'] === 'new_device'): ?>
         <div class="alert alert-danger py-2 small rounded-3"><i class="ti ti-device-mobile me-1"></i>New device login detected. You have been logged out.</div>
       <?php elseif ($_GET['reason'] === 'tabclosed_msg'): ?>

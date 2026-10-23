@@ -17,7 +17,7 @@
 <script src="../assets/js/main.js?v=<?= filemtime(__DIR__ . '/../assets/js/main.js') ?>"></script>
 <?php if (Auth::isLoggedIn()): ?>
   <script>
-    // Security: auto-logout after 5 minutes of inactivity
+    // Security: auto-logout after inactivity timeout (30 minutes)
     (function () {
       const TIMEOUT = <?= Auth::getSessionTimeout() ?> * 1000; // ms
       const WARN_BEFORE = 30000; // warn 30s before
