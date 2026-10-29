@@ -1175,6 +1175,10 @@ $canEdit = Auth::hasAnyPermission([
             <div class="irow-v"><?= $display($person['rank_name'] ?? null) ?></div>
           </div>
           <div class="irow">
+            <div class="irow-l">Trade</div>
+            <div class="irow-v"><?= $display($person['trade_name'] ?? 'GD') ?></div>
+          </div>
+          <div class="irow">
             <div class="irow-l">Platoon</div>
             <div class="irow-v"><?= $display($person['platoon_name'] ?? null) ?></div>
           </div>
@@ -1339,8 +1343,11 @@ $canEdit = Auth::hasAnyPermission([
         <td class="val"><?= $display($person['rank_name'] ?? null) ?></td>
       </tr>
       <tr>
+        <td class="lbl">Trade</td>
+        <td class="val"><?= $display($person['trade_name'] ?? 'GD') ?></td>
         <td class="lbl">Unit</td>
         <td class="val"><?= $display($person['unit_name'] ?? null) ?></td>
+      </tr>
         <td class="lbl">Platoon</td>
         <td class="val"><?= $display($person['platoon_name'] ?? null) ?></td>
       </tr>

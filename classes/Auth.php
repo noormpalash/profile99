@@ -309,23 +309,30 @@ class Auth
     }
 
     // --- Password Complexity Policy ---
-    public static function validatePasswordComplexity(string $password): ?string
+    public static function getPasswordComplexityErrors(string $password): array
     {
+        $errors = [];
         if (strlen($password) < 8) {
-            return "Password must be at least 8 characters long.";
+            $errors[] = "Password must be at least 8 characters long.";
         }
         if (!preg_match('/[A-Z]/', $password)) {
-            return "Password must contain at least one uppercase letter (A-Z).";
+            $errors[] = "Password must contain at least one uppercase letter (A-Z).";
         }
         if (!preg_match('/[a-z]/', $password)) {
-            return "Password must contain at least one lowercase letter (a-z).";
+            $errors[] = "Password must contain at least one lowercase letter (a-z).";
         }
         if (!preg_match('/[0-9]/', $password)) {
-            return "Password must contain at least one digit (0-9).";
+            $errors[] = "Password must contain at least one digit (0-9).";
         }
         if (!preg_match('/[^A-Za-z0-9]/', $password)) {
-            return "Password must contain at least one special character.";
+            $errors[] = "Password must contain at least one special character.";
         }
-        return null;
+        return $errors;
+    }
+
+    public static function validatePasswordComplexity(string $password): ?string
+    {
+        $errors = self::getPasswordComplexityErrors($password);
+        return empty($errors) ? null : implode(' ', $errors);
     }
 }

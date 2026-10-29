@@ -11,6 +11,7 @@ $categories = [
     'platoons' => 'Platoons', 'blood_groups' => 'Blood groups',
     'courses' => 'Courses', 'moqs' => 'MOQs', 'medical_categories' => 'Medical categories',
     'appointments' => 'Appointments', 'civil_educations' => 'Civil Educations',
+    'trades' => 'Trades',
 ];
 
 $table = $_GET['table'] ?? 'ranks';

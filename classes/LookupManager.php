@@ -12,7 +12,7 @@ class LookupManager {
     // Whitelist of allowed tables — NEVER accept a raw table name from user input directly
     private const ALLOWED_TABLES = [
         'ranks', 'units', 'cadres', 'platoons',
-        'blood_groups', 'courses', 'moqs', 'medical_categories', 'appointments', 'civil_educations'
+        'blood_groups', 'courses', 'moqs', 'medical_categories', 'appointments', 'civil_educations', 'trades'
     ];
 
     // Maps the referencing FK column for each lookup table, used to block unsafe deletes
@@ -21,6 +21,7 @@ class LookupManager {
         'platoons' => 'platoon_id', 'blood_groups' => 'blood_group_id',
         'courses' => null, 'moqs' => null, 'medical_categories' => null,
         'appointments' => 'appointment_id', 'civil_educations' => null,
+        'trades' => 'trade_id',
     ];
 
     private static function validateTable(string $table): void {

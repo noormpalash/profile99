@@ -80,6 +80,7 @@ $cadres = LookupManager::getAll('cadres');
 $platoons = LookupManager::getAll('platoons');
 $courses = LookupManager::getAll('courses');
 $moqs = LookupManager::getAll('moqs');
+$trades = LookupManager::getAll('trades');
 $bloodGroups = LookupManager::getAll('blood_groups');
 $medicalCategories = LookupManager::getAll('medical_categories');
 $districts = bangladeshDistricts();
@@ -170,6 +171,17 @@ foreach ($socialLinks as $link) {
               <?php foreach ($ranks as $r): ?>
                 <option value="<?= $r['id'] ?>" <?= $person['rank_id'] == $r['id'] ? 'selected' : '' ?>>
                   <?= htmlspecialchars($r['name']) ?></option><?php endforeach; ?>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small">Trade</label>
+            <select name="trade_id" class="form-select">
+              <option value="">-- select --</option>
+              <?php foreach ($trades as $tr): 
+                $isTradeSelected = !empty($person['trade_id']) ? ((int)$person['trade_id'] === (int)$tr['id']) : (strtoupper(trim($tr['name'])) === 'GD');
+              ?>
+                <option value="<?= $tr['id'] ?>" <?= $isTradeSelected ? 'selected' : '' ?>><?= htmlspecialchars($tr['name']) ?></option>
+              <?php endforeach; ?>
             </select>
           </div>
           <div class="col-md-3">

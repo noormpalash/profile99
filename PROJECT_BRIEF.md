@@ -1,52 +1,73 @@
 # Unit Personnel Management System: Project Brief
 
 ## Executive Overview
-The **Unit Personnel Management System** is a dedicated web application for administrative units to maintain, search, audit, and print military and organizational personnel records. It replaces manual paperwork and disjointed spreadsheets with a secure, centralized database.
+The **Unit Personnel Management System** is an enterprise-grade administrative platform designed for military and defense organizational units. It centralizes personnel management, service dossier tracking, physical readiness recording, promotion qualification screening, leave seniority governance, and two-tier approval workflows into a single, high-security relational database.
 
 ---
 
 ## Direct User Benefits (By Role)
 
 ### 1. For Commanding Officers & Executives
-- **Instant Unit Readiness Overview**: View active unit strength, personnel on leave, hospital admissions (CMH), and training status at a glance from the dashboard.
-- **Accurate Decision Support**: Filter personnel by cadre, course qualification, medical category, or firing/IPFT records to select members for deployments, UN missions, or special duties.
-- **Data Integrity Guarantee**: Review and approve changes before they commit to official records.
+- **Real-Time Unit Parade State**: Instant dashboard visibility into posted, authorized, and attached strength, personnel on leave, hospital admissions (CMH), and duty detachments.
+- **Decision & Deployment Intelligence**: Advanced multi-attribute search across ranks, trades, cadres, course qualifications, civil educations, medical categories, and firing/IPFT readiness for mission deployments.
+- **Two-Tier Command Integrity**: Mandatory review-and-approve pipeline before unverified record modifications commit to master rosters.
 
 ### 2. For Administrative Clerks & Daily Operators
-- **Fast Rosters & Parade State Printing**: Generate official muster rolls, leave lists, and duty rosters with custom headers and dates in seconds.
-- **Custom Print Layouts**: Toggle specific columns (Blood Group, District, Phone Number, Appointment, NID) without modifying the main database or using external software.
-- **Streamlined Workflow**: Input updates into a clean interface without worrying about breaking master database records.
+- **Rapid Roster & Parade State Generation**: Export and print official muster rolls, leave seniority queues, and duty rosters in seconds with rank-hierarchical military sorting.
+- **Custom Print Engine**: Editorial bio-data sheets and configurable personnel tables with selective column toggling (Trade, Blood Group, District, Phone, Appointment, NID).
+- **Manageable Dropdown Options**: In-app management of 11 lookup categories (Ranks, Trades, Units, Cadres, Platoons, Blood Groups, Courses, MOQs, Medical Categories, Appointments, Civil Educations).
+- **Bulk Excel Operations**: Preview, validate, and bulk-import personnel intakes directly from formatted `.xlsx` templates.
 
 ### 3. For Training & Medical Officers
-- **Promotion & MOQ Qualification**: Real-time evaluation of rank-specific mandatory qualifications (BTT, PE, PC, ATT, NCOC, Utility Course, CLM Cadre) across courses and cadres, with individual bypass controls.
-- **Fitness Tracking**: Monitor 4-cycle yearly plans, IPFT scores, RET, and Speed March results.
-- **Medical Category Oversight**: Maintain up-to-date health categories and medical restrictions to avoid deploying unfit personnel.
+- **Automated Promotion & MOQ Engine**: Real-time evaluation of rank-specific mandatory qualifications (BTT, PE, PC, ATT, NCOC, Utility Course, CLM Cadre) across courses, cadres, and civil education thresholds, complete with individual waiver/bypass controls and `moq_na` flags.
+- **4-Cycle Fitness & IPFT Tracking**: Monitor multi-year physical records (`personnel_yearly_records`), IPFT 1st & 2nd Annual scores, RET, and Speed March times with interactive drill-down modals.
+- **Medical Category Oversight**: Strict health category tracking, physical measurements, and disease records to prevent assigning medical-downgraded soldiers to restricted duties.
 
-### 4. For IT Staff & System Administrators
-- **Granular Security Controls**: Define exact viewing and editing permissions per user role (`Superadmin`, `Admin`, `User`, `Operator`, `Daily`).
-- **Complete Audit Trail**: Inspect detailed timestamps, IP addresses, and exact change diffs for every record modification.
-- **Zero-Downtime Maintenance**: Execute database updates and migrations directly from the browser interface.
-- **Integrated Backup System**: Generate full SQL database snapshots on demand for disaster recovery.
+### 4. For IT Staff & Security Administrators
+- **Granular Role-Based Access Control (RBAC)**: 37 fine-grained permissions mapped across 6 operational roles (`superadmin`, `admin`, `techadmin`, `user`, `operator`, `Daily`).
+- **Session Security & Device Tracking**: Single-session enforcement per account; detects logins from new devices and immediately terminates older sessions.
+- **In-App Lifecycle Maintenance**: Execute database schema migrations, trigger system updates, and download encrypted SQL database backups without CLI access.
+- **Tamper-Evident Audit Logging**: Complete historical logs capturing action types, record IDs, user identity, client IP, user agent, and visual field-level diffs.
 
 ---
 
 ## Core System Features
 
-| Feature | Description | Business Impact |
+| Feature | Description | Operational Impact |
 | :--- | :--- | :--- |
-| **Comprehensive Dossier** | Stores basic info, service history, yearly cycles, family details, health status, courses, and emergency contacts. | Centralizes all personnel records in one searchable database. |
-| **Promotion & MOQ Engine** | Evaluates promotion eligibility by rank across MOQs, courses, and cadres with per-personnel bypass support. | Automates promotion screening and eliminates manual eligibility checks. |
-| **Leave Matrix Engine** | Tracks leave seniority queue, yearly reset cycles, multi-year historical logs, and permission-gated audit resets. | Provides full transparency for leave approvals and rotation planning. |
-| **Two-Tier Approval System** | Operator edits go to a pending queue for administrative sign-off with side-by-side visual diffs. | Eliminates accidental data overwrites and unauthorized updates. |
-| **Selective Print Engine** | Print records on standard paper sizes (A4, Legal, Letter) with optional columns and rank-hierarchical military seniority sorting. | Saves hours spent manually compiling and formatting print sheets. |
-| **Multi-Criteria Search** | Filter by rank, unit, blood group, district, qualification status, and leave types. Filter panels stay open across queries. | Speeds up personnel lookups from minutes to seconds. |
-| **Bulk Excel Operations** | Import new personnel or batch update existing files via formatted Excel spreadsheets. | Eliminates manual repetitive data entry during annual intakes. |
-| **Automated Media Processing** | Built-in 400x400 photo cropping and validation on upload. | Maintains consistent, clean record cards without external photo editing. |
+| **Comprehensive Dossier** | Tracks basic profile, Trade (default `GD`), appointment, service history, multi-year training cycles, family records, civil education, medical stats, and social channels. | Consolidates fragmented paper files into a single, cohesive source of truth. |
+| **Promotion & MOQ Engine** | Dynamic rules engine checking rank eligibility against mandatory operational qualifications (MOQs), specialized courses, cadres, and civil education with individual waiver switches. | Removes manual promotion vetting errors and eliminates qualification oversight. |
+| **Trade & Specialization Engine** | Standardized `trades` lookup architecture (defaulting to General Duty / `GD`) integrated across service dossiers, search filters, and print rosters. | Accurately identifies occupational trade specialties across the force. |
+| **Leave Seniority & History Engine** | Algorithmic leave seniority calculation, real-time absence detection, multi-year leave logs, and permission-protected audit resets. | Guarantees fair, transparent rotation planning and verifiable leave accounting. |
+| **Manpower & Custom Absent States** | Tracks Authorized (Auth), Posted, and Attached (ATT) numbers across military ranks, paired with configurable absent statuses (CMH, TRG, CMD, ATT, GOC GD, Suspend, OSL, AWOL). | Delivers instant parade state accounting matching military headcounts. |
+| **Two-Tier Approval Pipeline** | Operator edits route to a staged approval table with visual before/after diffs generated by `ApprovalFormatter`. | Stops unauthorized edits, accidental data overwriting, and data corruption. |
+| **Advanced Multi-Filter Search** | 15 simultaneous criteria: search text, rank, trade, unit, status, district, course, MOQ, qualification state, cadre, platoon, marital status, blood group, family member (FM), and education. | Reduces personnel discovery time from minutes to milliseconds. |
+| **Configurable Print & Bio Engine** | Editorial printable bio-data sheets and configurable personnel tabular printouts supporting standard page layouts (A4, Legal, Letter) with column selectors. | Standardizes military documentation for command briefings and headquarters reporting. |
+| **Bulk Excel Operations** | Multi-row XLSX parser with preview, validation, in-table cell editing, and batch insertion with lookup auto-generation. | Speeds up annual recruit intakes and bulk record reconciliation. |
+| **Automated Media Processing** | Automatic 400x400 GD-based center cropping, image resampling, and file integrity validation on upload. | Guarantees uniform photo presentation while stripping embedded malicious payloads. |
+| **Multi-Year Historical Tracking** | Dedicated `personnel_yearly_records` capturing IPFT, RET, Speed March, and training cycle readiness per calendar year. | Preserves long-term fitness and performance trends across a soldier's career. |
+
+---
+
+## Security Architecture & Data Protection
+
+| Security Layer | Implementation Mechanism | Protection Guarantee |
+| :--- | :--- | :--- |
+| **Authentication & Password Security** | Modern password hashing via PHP `password_hash()` (BCRYPT / ARGON2). | Eliminates plaintext credential exposure and resists brute-force rainbow table attacks. |
+| **Single-Session Enforcement** | Unique database-tracked `session_token` checked on every authenticated request. Logins on a new browser/device invalidate existing sessions. | Defeats credential sharing, unauthorized concurrent usage, and session hijacking. |
+| **Inactivity Session Expiry** | Automatic session termination after 1800 seconds (30 minutes) of inactivity with `last_activity` timestamp tracking. | Protects abandoned terminals in shared administrative offices. |
+| **Anti-CSRF Defense** | Cryptographic per-session CSRF token generated and verified on all mutating HTTP POST actions via `Auth::csrfField()` and `Auth::verifyCsrf()`. | Prevents Cross-Site Request Forgery and unauthorized action triggering. |
+| **SQL Injection Prevention** | 100% Parameterized queries using PDO prepared statements across all queries. Table names validated against strict constants in `LookupManager`. | Neutralizes SQL injection and unauthorized arbitrary table access. |
+| **XSS & Output Sanitization** | Systematic contextual output escaping with `htmlspecialchars()` across templates and JSON serializers. | Precludes stored and reflected Cross-Site Scripting (XSS). |
+| **Granular RBAC** | 37 atomic permissions grouped into matrix configurations managed via `role_management.php` with sectional edit enforcement. | Adheres to the principle of least privilege; operators cannot access administrative tools. |
+| **Secure Media Pipeline** | MIME type inspection using `finfo_file` (restricting strictly to `image/jpeg` and `image/png`), 2MB file size ceiling, and GD re-encoding. | Re-rasterizes image pixels, stripping hidden PHP shells or EXIF exploit payloads. |
+| **Complete Audit Logging** | Comprehensive logging via `Logger::log()` recording timestamp, user ID, action type, target personnel, client IP, user agent, and diffs. | Enables forensic auditing and accountability across all record mutations. |
+| **Database Management & Backups** | Permission-gated SQL database dump export via `DatabaseBackupService` and in-app schema migration runner via `MigrationService`. | Ensures reliable disaster recovery and controlled schema evolution. |
 
 ---
 
 ## Technical Specifications
-- **Runtime:** PHP 8.0+
-- **Database:** MySQL / MariaDB (Prepared statements, Foreign Key integrity)
-- **Frontend:** Bootstrap 5, Tabler Icons, SweetAlert2, CSS3
-- **File Processing:** PhpSpreadsheet & GD Image Processor
+- **Backend Runtime:** PHP 8.0+
+- **Database Architecture:** MySQL 5.7+ / MariaDB 10.3+ (InnoDB, UTF8mb4, Foreign Key integrity)
+- **Frontend Stack:** Bootstrap 5, Tabler Icons, SweetAlert2, CSS3 Flexbox/Grid
+- **Asset Processing:** PhpSpreadsheet & GD Image Processor (bundled extensions)

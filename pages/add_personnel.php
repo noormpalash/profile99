@@ -60,6 +60,7 @@ $courses = LookupManager::getAll('courses');
 $bloodGroups = LookupManager::getAll('blood_groups');
 $medicalCategories = LookupManager::getAll('medical_categories');
 $moqs = LookupManager::getAll('moqs');
+$trades = LookupManager::getAll('trades');
 $districts = bangladeshDistricts();
 $appointments = LookupManager::getAll('appointments');
 $civilEducations = LookupManager::getAll('civil_educations');
@@ -129,6 +130,17 @@ $civilEducations = LookupManager::getAll('civil_educations');
             <?php foreach ($ranks as $r): ?>
               <option value="<?= $r['id'] ?>" <?= isset($old['rank_id']) && $old['rank_id'] == $r['id'] ? 'selected' : '' ?>>
                 <?= htmlspecialchars($r['name']) ?></option><?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small">Trade</label>
+          <select name="trade_id" class="form-select">
+            <option value="">-- select --</option>
+            <?php foreach ($trades as $tr): 
+              $isTradeSelected = isset($old['trade_id']) ? ((int)$old['trade_id'] === (int)$tr['id']) : (strtoupper(trim($tr['name'])) === 'GD');
+            ?>
+              <option value="<?= $tr['id'] ?>" <?= $isTradeSelected ? 'selected' : '' ?>><?= htmlspecialchars($tr['name']) ?></option>
+            <?php endforeach; ?>
           </select>
         </div>
         <div class="col-md-3">

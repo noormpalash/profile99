@@ -111,6 +111,7 @@ class ApprovalFormatter {
         
         $lookups = [
             'rank_id' => 'ranks',
+            'trade_id' => 'trades',
             'unit_id' => 'units',
             'cadre_id' => 'cadres',
             'platoon_id' => 'platoons',

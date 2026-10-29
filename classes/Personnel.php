@@ -10,7 +10,7 @@ class Personnel {
     // ---- List / Search ----
     public static function all(): array {
         $db = getDB();
-        return $db->query("SELECT p.*, r.name AS rank_name, u.name AS unit_name, b.name AS blood_group_name, a.name AS appointment_name, c.name AS cadre_name, pl.name AS platoon_name, pf.family_member, pf.living_status, pe.civil_education,
+        return $db->query("SELECT p.*, r.name AS rank_name, u.name AS unit_name, b.name AS blood_group_name, a.name AS appointment_name, c.name AS cadre_name, pl.name AS platoon_name, t.name AS trade_name, pf.family_member, pf.living_status, pe.civil_education,
                             (SELECT from_date FROM personnel_leaves WHERE personnel_id = p.id AND CURRENT_DATE >= from_date AND CURRENT_DATE <= to_date LIMIT 1) AS current_leave_from,
                             (SELECT to_date FROM personnel_leaves WHERE personnel_id = p.id AND CURRENT_DATE >= from_date AND CURRENT_DATE <= to_date LIMIT 1) AS current_leave_to
                             FROM personnel p
@@ -20,6 +20,7 @@ class Personnel {
                             LEFT JOIN appointments a ON p.appointment_id = a.id
                             LEFT JOIN cadres c ON p.cadre_id = c.id
                             LEFT JOIN platoons pl ON p.platoon_id = pl.id
+                            LEFT JOIN trades t ON p.trade_id = t.id
                             LEFT JOIN personnel_family pf ON p.id = pf.personnel_id
                             LEFT JOIN personnel_education pe ON p.id = pe.personnel_id
                             ORDER BY p.name")->fetchAll();
@@ -27,7 +28,7 @@ class Personnel {
 
     public static function filter(array $filters): array {
         $db = getDB();
-        $sql = "SELECT p.*, r.name AS rank_name, u.name AS unit_name, b.name AS blood_group_name, a.name AS appointment_name, c.name AS cadre_name, pl.name AS platoon_name, pf.family_member, pf.living_status, pe.civil_education,
+        $sql = "SELECT p.*, r.name AS rank_name, u.name AS unit_name, b.name AS blood_group_name, a.name AS appointment_name, c.name AS cadre_name, pl.name AS platoon_name, t.name AS trade_name, pf.family_member, pf.living_status, pe.civil_education,
                             (SELECT from_date FROM personnel_leaves WHERE personnel_id = p.id AND CURRENT_DATE >= from_date AND CURRENT_DATE <= to_date LIMIT 1) AS current_leave_from,
                             (SELECT to_date FROM personnel_leaves WHERE personnel_id = p.id AND CURRENT_DATE >= from_date AND CURRENT_DATE <= to_date LIMIT 1) AS current_leave_to
             FROM personnel p
@@ -37,6 +38,7 @@ class Personnel {
             LEFT JOIN appointments a ON p.appointment_id = a.id
             LEFT JOIN cadres c ON p.cadre_id = c.id
             LEFT JOIN platoons pl ON p.platoon_id = pl.id
+            LEFT JOIN trades t ON p.trade_id = t.id
             LEFT JOIN personnel_family pf ON p.id = pf.personnel_id
             LEFT JOIN personnel_education pe ON p.id = pe.personnel_id
             WHERE 1=1";
@@ -67,6 +69,12 @@ class Personnel {
         if ($appointmentId > 0) {
             $sql .= " AND p.appointment_id = ?";
             $params[] = $appointmentId;
+        }
+
+        $tradeId = (int)($filters['trade_id'] ?? 0);
+        if ($tradeId > 0) {
+            $sql .= " AND p.trade_id = ?";
+            $params[] = $tradeId;
         }
 
         $bloodGroupId = (int)($filters['blood_group_id'] ?? 0);
@@ -190,7 +198,7 @@ class Personnel {
 
     public static function find(int $id): ?array {
         $db = getDB();
-        $stmt = $db->prepare("SELECT p.*, r.name AS rank_name, u.name AS unit_name, c.name AS cadre_name, pl.name AS platoon_name, b.name AS blood_group_name, a.name AS appointment_name, pe.civil_education,
+        $stmt = $db->prepare("SELECT p.*, r.name AS rank_name, u.name AS unit_name, c.name AS cadre_name, pl.name AS platoon_name, b.name AS blood_group_name, a.name AS appointment_name, t.name AS trade_name, pe.civil_education,
                        (SELECT leave_type FROM personnel_leaves WHERE personnel_id = p.id AND CURRENT_DATE >= from_date AND CURRENT_DATE <= to_date LIMIT 1) AS current_leave_type
                        FROM personnel p
                        LEFT JOIN ranks r ON p.rank_id = r.id
@@ -199,6 +207,7 @@ class Personnel {
                        LEFT JOIN platoons pl ON p.platoon_id = pl.id
                        LEFT JOIN blood_groups b ON p.blood_group_id = b.id
                        LEFT JOIN appointments a ON p.appointment_id = a.id
+                       LEFT JOIN trades t ON p.trade_id = t.id
                        LEFT JOIN personnel_education pe ON p.id = pe.personnel_id
                        WHERE p.id = ?");
         $stmt->execute([$id]);
@@ -322,13 +331,25 @@ class Personnel {
             $poVal = trim((string)($data['po'] ?? '')) ?: null;
             $psVal = trim((string)($data['ps'] ?? '')) ?: null;
 
+            $tradeId = !empty($data['trade_id']) ? (int)$data['trade_id'] : null;
+            if (!$tradeId) {
+                try {
+                    $stmtGd = $db->query("SELECT id FROM trades WHERE name = 'GD' LIMIT 1");
+                    $gdId = $stmtGd ? $stmtGd->fetchColumn() : null;
+                    if ($gdId) {
+                        $tradeId = (int)$gdId;
+                    }
+                } catch (Exception $e) {
+                }
+            }
+
             $moqNa = (!empty($data['moq_not_applicable']) || !empty($data['moq_na'])) ? 1 : 0;
             $stmt = $db->prepare("INSERT INTO personnel
-                (personal_number, name, nid, photo_path, rank_id, unit_id, cadre_id, platoon_id, blood_group_id, appointment_id, batch, mobile_number, address, detailed_address, vill, po, ps, status, moq_na)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
+                (personal_number, name, nid, photo_path, rank_id, trade_id, unit_id, cadre_id, platoon_id, blood_group_id, appointment_id, batch, mobile_number, address, detailed_address, vill, po, ps, status, moq_na)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
             $stmt->execute([
                 $data['personal_number'], $data['name'], trim((string)($data['nid'] ?? '')) ?: null, $photoPath,
-                empty($data['rank_id']) ? null : $data['rank_id'], empty($data['unit_id']) ? null : $data['unit_id'], empty($data['cadre_id']) ? null : $data['cadre_id'],
+                empty($data['rank_id']) ? null : $data['rank_id'], $tradeId, empty($data['unit_id']) ? null : $data['unit_id'], empty($data['cadre_id']) ? null : $data['cadre_id'],
                 empty($data['platoon_id']) ? null : $data['platoon_id'], empty($data['blood_group_id']) ? null : $data['blood_group_id'], empty($data['appointment_id']) ? null : $data['appointment_id'],
                 trim((string)($data['batch'] ?? '')) ?: null,
                 $data['mobile_number'] ?? null, $addressVal, $detailedAddressVal, $villVal, $poVal, $psVal,
@@ -500,11 +521,11 @@ class Personnel {
                     }
                 }
                 
-                $sql = "UPDATE personnel SET personal_number=?, name=?, nid=?, rank_id=?, unit_id=?,
+                $sql = "UPDATE personnel SET personal_number=?, name=?, nid=?, rank_id=?, trade_id=?, unit_id=?,
                         cadre_id=?, platoon_id=?, blood_group_id=?, appointment_id=?, batch=?, mobile_number=?, address=?, detailed_address=?, vill=?, po=?, ps=?, status=?";
                 $params = [
                     $data['personal_number'] ?? $existingPerson['personal_number'], $data['name'] ?? $existingPerson['name'], trim((string)($data['nid'] ?? $existingPerson['nid'])) ?: null,
-                    empty($data['rank_id']) ? null : $data['rank_id'], empty($data['unit_id']) ? null : $data['unit_id'], empty($data['cadre_id']) ? null : $data['cadre_id'],
+                    empty($data['rank_id']) ? null : $data['rank_id'], empty($data['trade_id']) ? null : $data['trade_id'], empty($data['unit_id']) ? null : $data['unit_id'], empty($data['cadre_id']) ? null : $data['cadre_id'],
                     empty($data['platoon_id']) ? null : $data['platoon_id'], empty($data['blood_group_id']) ? null : $data['blood_group_id'], empty($data['appointment_id']) ? null : $data['appointment_id'],
                     trim((string)($data['batch'] ?? '')) ?: null,
                     $data['mobile_number'] ?? null, $addressVal, $detailedAddressVal, $villVal, $poVal, $psVal,
@@ -1513,7 +1534,7 @@ class Personnel {
     }
 
     private static function getOrCreateLookup(string $table, $value): ?int {
-        $allowed = ['ranks', 'units', 'cadres', 'platoons', 'blood_groups', 'courses', 'moqs', 'medical_categories', 'appointments'];
+        $allowed = ['ranks', 'units', 'cadres', 'platoons', 'blood_groups', 'courses', 'moqs', 'medical_categories', 'appointments', 'trades'];
         if (!in_array($table, $allowed, true)) {
             throw new \InvalidArgumentException("Invalid lookup table: $table");
         }

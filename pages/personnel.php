@@ -10,6 +10,7 @@ $withSidebar = true;
 $filters = [
   'q' => trim((string) ($_GET['q'] ?? '')),
   'rank_id' => (string) ($_GET['rank_id'] ?? ''),
+  'trade_id' => (string) ($_GET['trade_id'] ?? ''),
   'unit_id' => (string) ($_GET['unit_id'] ?? ''),
   'blood_group_id' => (string) ($_GET['blood_group_id'] ?? ''),
   'status' => trim((string) ($_GET['status'] ?? '')),
@@ -32,6 +33,7 @@ $moqStatusFilter = $filters['moq_status'] ?? '';
 $isMoqNotQualFilter = ($moqStatusFilter === 'not_qualified');
 $missingMoqsMap = Personnel::getMissingMoqsMap($moqFilterId);
 $ranks = LookupManager::getAll('ranks');
+$trades = LookupManager::getAll('trades');
 $units = LookupManager::getAll('units');
 $bloodGroups = LookupManager::getAll('blood_groups');
 $courses = LookupManager::getAll('courses');
@@ -114,6 +116,16 @@ $districts = bangladeshDistricts();
                   <?php foreach ($ranks as $rank): ?>
                     <option value="<?= $rank['id'] ?>" <?= $filters['rank_id'] !== '' && (int) $filters['rank_id'] === (int) $rank['id'] ? 'selected' : '' ?>>
                       <?= htmlspecialchars($rank['name']) ?></option>
+                  <?php endforeach; ?>
+                </select>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small text-secondary fw-medium">Trade</label>
+                <select name="trade_id" class="form-select">
+                  <option value="">All trades</option>
+                  <?php foreach ($trades as $trade): ?>
+                    <option value="<?= $trade['id'] ?>" <?= $filters['trade_id'] !== '' && (int) $filters['trade_id'] === (int) $trade['id'] ? 'selected' : '' ?>>
+                      <?= htmlspecialchars($trade['name']) ?></option>
                   <?php endforeach; ?>
                 </select>
               </div>
