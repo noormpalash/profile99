@@ -35,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 } catch (Exception $e) {
                     error_log("System update error: " . $e->getMessage());
-                    $error = "Update failed. Please check the update package and try again.";
+                    $error = "Update failed: " . htmlspecialchars($e->getMessage());
                 }
             } else {
                 $error = "Invalid file type. Please upload a ZIP file.";
