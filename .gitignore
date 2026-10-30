@@ -18,6 +18,8 @@ Thumbs.db
 # IDE
 .idea/
 .vscode/
+.agents/
+skills-lock.json
 
 # Temp files
 uploads/temp*/

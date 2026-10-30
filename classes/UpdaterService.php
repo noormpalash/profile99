@@ -22,7 +22,11 @@ class UpdaterService
             'uploads',
             '.git',
             '.gitignore',
-            '.env'
+            '.env',
+            '.agents',
+            'skills-lock.json',
+            '__MACOSX',
+            '.DS_Store'
         ];
     }
 
@@ -49,6 +53,11 @@ class UpdaterService
                 throw new RuntimeException("Malicious path traversal detected in ZIP archive.");
             }
 
+            // Skip internal metadata, Mac resource forks, and agent tooling folders
+            if (str_starts_with($entry, '__MACOSX/') || str_contains($entry, '/__MACOSX/') || str_contains($entry, '.agents/') || str_contains($entry, '.git/')) {
+                continue;
+            }
+
             // Block dangerous binary and shell extensions
             $ext = strtolower(pathinfo($entry, PATHINFO_EXTENSION));
             if (in_array($ext, $blockedExtensions, true)) {
@@ -66,8 +75,11 @@ class UpdaterService
             $zip->close();
             
             // Check if ZIP has a root folder or files directly.
-            // Often ZIPs from github have a single root folder. We'll handle direct files.
-            $extractItems = array_diff(scandir($this->tempExtractDir), ['.', '..']);
+            // Ignore OS metadata and tool folders when checking root items
+            $extractItems = array_values(array_filter(
+                scandir($this->tempExtractDir),
+                fn($item) => !in_array($item, ['.', '..', '__MACOSX', '.DS_Store', '.agents', '.git'], true)
+            ));
             $sourceDir = $this->tempExtractDir;
             if (count($extractItems) === 1) {
                 $singleItem = reset($extractItems);
