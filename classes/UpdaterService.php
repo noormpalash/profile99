@@ -118,7 +118,10 @@ class UpdaterService
             if (is_dir($currentSrc)) {
                 $this->copyFilesRecursively($currentSrc, $currentDst, $currentRel);
             } else {
-                copy($currentSrc, $currentDst);
+                if (!@copy($currentSrc, $currentDst)) {
+                    $err = error_get_last();
+                    throw new RuntimeException("Failed to copy file '{$currentRel}': " . ($err['message'] ?? 'permission denied'));
+                }
             }
         }
         closedir($dir);
