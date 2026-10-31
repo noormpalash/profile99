@@ -2,7 +2,8 @@
 declare(strict_types=1);
 
 $root = __DIR__;
-$outputZip = $root . '/update.zip';
+$withVendor = in_array('--with-vendor', $argv, true);
+$outputZip = $root . ($withVendor ? '/update_full.zip' : '/update.zip');
 
 if (file_exists($outputZip)) {
     unlink($outputZip);
@@ -21,11 +22,17 @@ $excludePrefixes = [
     'uploads',
     'config/db.php',
     'update.zip',
+    'update_full.zip',
     'package_update.php',
     'test_zip',
+    'docs',
     '.DS_Store',
     '__MACOSX'
 ];
+
+if (!$withVendor) {
+    $excludePrefixes[] = 'vendor';
+}
 
 $filesAdded = 0;
 $iterator = new RecursiveIteratorIterator(
@@ -41,6 +48,12 @@ foreach ($iterator as $name => $file) {
     $filePath = $file->getRealPath();
     $relPath = ltrim(str_replace('\\', '/', substr($filePath, strlen($root))), '/');
 
+    // Skip temp/lock/system files
+    $base = basename($relPath);
+    if ($base === '.DS_Store' || str_starts_with($base, '~$') || str_contains($relPath, '__MACOSX')) {
+        continue;
+    }
+
     // Check excludes
     $skip = false;
     foreach ($excludePrefixes as $prefix) {
@@ -50,10 +63,6 @@ foreach ($iterator as $name => $file) {
         }
     }
     if ($skip) {
-        continue;
-    }
-
-    if (basename($relPath) === '.DS_Store' || str_contains($relPath, '__MACOSX')) {
         continue;
     }
 
@@ -67,5 +76,5 @@ foreach ($iterator as $name => $file) {
 }
 
 $zip->close();
-echo "Update package created successfully: {$outputZip} ({$filesAdded} files)\n";
-
+$mode = $withVendor ? "full (with vendor)" : "app-only (clean & fast)";
+echo "Update package created: {$outputZip} [{$mode}, {$filesAdded} files, " . round(filesize($outputZip) / 1024, 1) . " KB]\n";

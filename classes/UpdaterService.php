@@ -12,7 +12,8 @@ class UpdaterService
     public function __construct()
     {
         $this->appRoot = realpath(__DIR__ . '/../');
-        $this->tempExtractDir = $this->appRoot . '/uploads/temp_update_' . time();
+        $sysTmp = rtrim(sys_get_temp_dir(), '/\\');
+        $this->tempExtractDir = $sysTmp . '/profile99_update_' . time() . '_' . mt_rand(1000, 9999);
         
         // Paths relative to appRoot that should never be overwritten
         $this->safePaths = [
@@ -66,8 +67,11 @@ class UpdaterService
             }
         }
 
-        if (!mkdir($this->tempExtractDir, 0755, true) && !is_dir($this->tempExtractDir)) {
-            throw new RuntimeException("Failed to create temporary extraction directory.");
+        if (!@mkdir($this->tempExtractDir, 0777, true) && !is_dir($this->tempExtractDir)) {
+            $this->tempExtractDir = $this->appRoot . '/uploads/temp_update_' . time();
+            if (!@mkdir($this->tempExtractDir, 0777, true) && !is_dir($this->tempExtractDir)) {
+                throw new RuntimeException("Failed to create temporary extraction directory.");
+            }
         }
 
         try {
@@ -96,7 +100,7 @@ class UpdaterService
             $this->removeDirectory($this->tempExtractDir);
             
             return $migrationsRun;
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             $this->removeDirectory($this->tempExtractDir);
             throw new RuntimeException("Update failed: " . $e->getMessage());
         }
@@ -110,7 +114,8 @@ class UpdaterService
         }
 
         if (!is_dir($dst)) {
-            mkdir($dst, 0777, true);
+            @mkdir($dst, 0777, true);
+            @chmod($dst, 0777);
         }
 
         while (($file = readdir($dir)) !== false) {
@@ -130,10 +135,17 @@ class UpdaterService
             if (is_dir($currentSrc)) {
                 $this->copyFilesRecursively($currentSrc, $currentDst, $currentRel);
             } else {
-                if (!@copy($currentSrc, $currentDst)) {
-                    $err = error_get_last();
-                    throw new RuntimeException("Failed to copy file '{$currentRel}': " . ($err['message'] ?? 'permission denied'));
+                if (file_exists($currentDst)) {
+                    @chmod($currentDst, 0666);
                 }
+                if (!@copy($currentSrc, $currentDst)) {
+                    @unlink($currentDst);
+                    if (!@copy($currentSrc, $currentDst)) {
+                        $err = error_get_last();
+                        throw new RuntimeException("Failed to copy file '{$currentRel}': " . ($err['message'] ?? 'permission denied'));
+                    }
+                }
+                @chmod($currentDst, 0666);
             }
         }
         closedir($dir);

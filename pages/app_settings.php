@@ -33,7 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if (!empty($migrationsRun)) {
                         $message .= " Migrations run: " . implode(', ', $migrationsRun);
                     }
-                } catch (Exception $e) {
+                } catch (Throwable $e) {
                     error_log("System update error: " . $e->getMessage());
                     $error = "Update failed: " . htmlspecialchars($e->getMessage());
                 }

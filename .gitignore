@@ -22,4 +22,5 @@ Thumbs.db
 skills-lock.json
 
 # Temp files
-uploads/temp*/
+uploads/temp*
+update_full.zip/
